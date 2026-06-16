@@ -22,6 +22,7 @@ from src.ui.components_control import ControlPanelComponent
 from src.ui.components_preview import PreviewComponent
 from src.ui.components_file_selector import FileSelectorComponent
 from src.ui.components_metrics import MetricsPanelComponent
+from src.analysis.analyzer import summarize_metrics
 from src.processing.batch_processor import process_dataset
 from src.utils.dataset_loader import scan_png_folder, validate_dataset
 
@@ -53,6 +54,7 @@ class CompressionApp(tk.Tk):
         self.current_file_index = 0
         self.cancel_requested = False
         self.worker_thread = None
+        self.metrics_data = []
 
         # Wire GUI events
         self._bind_events()
@@ -199,6 +201,8 @@ class CompressionApp(tk.Tk):
         self.cancel_requested = False
         self.control_panel.set_progress(0)
         self.control_panel.set_status("Memulai batch compression...")
+        self.metrics_data = []
+        self.metrics.reset()
         self.control_panel.disable_compress()
         self.control_panel.enable_cancel()
         self.control_panel.disable_export()
@@ -220,17 +224,23 @@ class CompressionApp(tk.Tk):
         )
         self.after(0, self._finish_compression, summary)
 
-    def _queue_progress_update(self, progress_percent, status_text):
+    def _queue_progress_update(self, progress_percent, status_text, metric=None):
         """Schedule progress updates on the Tkinter main loop."""
         self.after(
             0,
-            lambda: self._apply_progress_update(progress_percent, status_text)
+            lambda: self._apply_progress_update(progress_percent, status_text, metric)
         )
 
-    def _apply_progress_update(self, progress_percent, status_text):
+    def _apply_progress_update(self, progress_percent, status_text, metric=None):
         """Apply progress updates to GUI controls."""
         self.control_panel.set_progress(progress_percent)
         self.control_panel.set_status(status_text)
+        if metric is not None:
+            self.metrics_data.append(metric)
+            self.metrics.add_metric(metric)
+            self.metrics.set_summary(
+                summarize_metrics(self.metrics_data, cancelled=self.cancel_requested)
+            )
 
     def _cancel_compression(self):
         """Request graceful cancellation after the active file finishes."""
@@ -249,12 +259,14 @@ class CompressionApp(tk.Tk):
         self.control_panel.disable_cancel()
 
         if summary["cancelled"]:
+            self.metrics.set_summary(summary["summary"])
             self.control_panel.set_status(
                 f"Partial completion: {summary['completed']} selesai, {summary['failed']} gagal."
             )
             return
 
         self.control_panel.set_progress(100)
+        self.metrics.set_summary(summary["summary"])
         self.control_panel.set_status(
             f"Batch selesai: {summary['completed']} file diproses, {summary['failed']} gagal."
         )

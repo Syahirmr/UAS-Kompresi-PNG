@@ -209,17 +209,17 @@ menghasilkan data komparasi.
 
 Checklist:
 
-[ ] Hitung ukuran awal
+[x] Hitung ukuran awal
 
-[ ] Hitung ukuran akhir
+[x] Hitung ukuran akhir
 
-[ ] Hitung persentase reduksi
+[x] Hitung persentase reduksi
 
-[ ] Hitung waktu kompresi
+[x] Hitung waktu kompresi
 
-[ ] Ambil resolusi
+[x] Ambil resolusi
 
-[ ] Simpan status
+[x] Simpan status
 
 Output:
 

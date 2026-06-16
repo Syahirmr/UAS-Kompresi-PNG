@@ -21,11 +21,13 @@ class MetricsPanelComponent(ttk.LabelFrame):
         
         # Create Treeview for metrics table
         columns = (
+            "File",
             "Algorithm",
             "Original Size",
             "Compressed Size",
             "Reduction %",
             "Time (ms)",
+            "Resolution",
             "Status"
         )
         
@@ -33,12 +35,15 @@ class MetricsPanelComponent(ttk.LabelFrame):
         self.tree = ttk.Treeview(
             self,
             columns=columns,
-            height=6,
+            height=8,
             show="headings",
             selectmode=tk.BROWSE
         )
         
         # Define column headings and widths
+        self.tree.heading("File", text="File")
+        self.tree.column("File", width=150, anchor=tk.W)
+
         self.tree.heading("Algorithm", text="Algorithm")
         self.tree.column("Algorithm", width=120, anchor=tk.CENTER)
         
@@ -53,6 +58,9 @@ class MetricsPanelComponent(ttk.LabelFrame):
         
         self.tree.heading("Time (ms)", text="Time (ms)")
         self.tree.column("Time (ms)", width=90, anchor=tk.CENTER)
+
+        self.tree.heading("Resolution", text="Resolution")
+        self.tree.column("Resolution", width=100, anchor=tk.CENTER)
         
         self.tree.heading("Status", text="Status")
         self.tree.column("Status", width=100, anchor=tk.CENTER)
@@ -62,39 +70,70 @@ class MetricsPanelComponent(ttk.LabelFrame):
         self.tree.configure(yscrollcommand=scrollbar.set)
         
         # Pack Treeview and scrollbar
-        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.tree.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        # Insert placeholder rows for each algorithm
-        algorithms = ["Deflate Baseline", "Zopfli Deflate", "OxiPNG"]
-        for algo in algorithms:
-            self.tree.insert(
-                "",
-                tk.END,
-                values=(
-                    algo,
-                    "-",
-                    "-",
-                    "-",
-                    "-",
-                    "Waiting"
-                )
-            )
+
+        # Summary section
+        self.summary_var = tk.StringVar(
+            value="Completed: 0 | Failed: 0 | Cancelled: No | Avg Reduction: 0.00% | Avg Time: 0.00 ms"
+        )
+        summary_label = tk.Label(
+            self,
+            textvariable=self.summary_var,
+            font=FONT_NORMAL,
+            fg=TEXT_PRIMARY,
+            bg=BG_ACCENT,
+            anchor=tk.W,
+            justify=tk.LEFT
+        )
+        summary_label.pack(side=tk.BOTTOM, fill=tk.X, pady=(PADDING_NORMAL, 0))
     
     def reset(self):
         """Reset metrics display to placeholder values."""
-        placeholder_values = (
-            "-",
-            "-",
-            "-",
-            "-",
-            "Waiting"
-        )
-        for item in self.tree.get_children():
-            values = (self.tree.item(item, 'values')[0],) + placeholder_values
-            self.tree.item(item, values=values)
+        self.clear_all()
+        self.set_summary({
+            "completed": 0,
+            "failed": 0,
+            "cancelled": False,
+            "avg_reduction": 0,
+            "avg_time_ms": 0,
+        })
 
     def clear_all(self):
         """Clear all placeholder rows."""
         for item in self.tree.get_children():
             self.tree.delete(item)
+
+    def add_metric(self, metric):
+        """Add one metrics row."""
+        self.tree.insert(
+            "",
+            tk.END,
+            values=(
+                metric["file"],
+                metric["algorithm"],
+                self._format_bytes(metric["original_size"]),
+                self._format_bytes(metric["compressed_size"]),
+                f"{metric['reduction_percent']:.2f}%",
+                f"{metric['time_ms']:.2f}",
+                metric["resolution"],
+                metric["status"],
+            )
+        )
+
+    def set_summary(self, summary):
+        """Update summary section."""
+        cancelled = "Yes" if summary["cancelled"] else "No"
+        self.summary_var.set(
+            "Completed: "
+            f"{summary['completed']} | Failed: {summary['failed']} | "
+            f"Cancelled: {cancelled} | "
+            f"Avg Reduction: {summary['avg_reduction']:.2f}% | "
+            f"Avg Time: {summary['avg_time_ms']:.2f} ms"
+        )
+
+    def _format_bytes(self, value):
+        """Format bytes as KB for display."""
+        if value <= 0:
+            return "-"
+        return f"{value / 1024:.2f} KB"
