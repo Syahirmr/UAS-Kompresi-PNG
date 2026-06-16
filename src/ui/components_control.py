@@ -134,8 +134,9 @@ class ControlPanelComponent(ttk.LabelFrame):
     
     def set_progress(self, value):
         """Update progress bar."""
-        self.progress_var.set(value)
-        self.progress_text.config(text=f"{int(value)}%")
+        bounded_value = max(0, min(100, value))
+        self.progress_var.set(bounded_value)
+        self.progress_text.config(text=f"{int(bounded_value)}%")
     
     def set_status(self, message):
         """Update status message."""

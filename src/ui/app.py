@@ -6,6 +6,7 @@ PNG Compression Comparison System
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import sys
+import threading
 from pathlib import Path
 
 # Add src to path
@@ -21,6 +22,7 @@ from src.ui.components_control import ControlPanelComponent
 from src.ui.components_preview import PreviewComponent
 from src.ui.components_file_selector import FileSelectorComponent
 from src.ui.components_metrics import MetricsPanelComponent
+from src.processing.batch_processor import process_dataset
 from src.utils.dataset_loader import scan_png_folder, validate_dataset
 
 
@@ -49,6 +51,8 @@ class CompressionApp(tk.Tk):
         self.files_list = []
         self.file_labels = []
         self.current_file_index = 0
+        self.cancel_requested = False
+        self.worker_thread = None
 
         # Wire GUI events
         self._bind_events()
@@ -134,6 +138,8 @@ class CompressionApp(tk.Tk):
     def _bind_events(self):
         """Bind GUI events for dataset loading and file navigation."""
         self.folder_picker.browse_btn.config(command=self._browse_dataset_folder)
+        self.control_panel.compress_btn.config(command=self._start_compression)
+        self.control_panel.cancel_btn.config(command=self._cancel_compression)
         self.file_selector.prev_btn.config(command=self._select_previous_file)
         self.file_selector.next_btn.config(command=self._select_next_file)
         self.file_selector.file_list.bind(
@@ -177,6 +183,81 @@ class CompressionApp(tk.Tk):
 
         if not valid:
             messagebox.showwarning("Dataset Belum Valid", message)
+
+    def _start_compression(self):
+        """Start dataset compression in a background thread."""
+        valid, message = validate_dataset(self.files_list)
+        if not valid:
+            self.control_panel.set_status(message)
+            messagebox.showwarning("Dataset Belum Valid", message)
+            return
+
+        if self.is_compressing:
+            return
+
+        self.is_compressing = True
+        self.cancel_requested = False
+        self.control_panel.set_progress(0)
+        self.control_panel.set_status("Memulai batch compression...")
+        self.control_panel.disable_compress()
+        self.control_panel.enable_cancel()
+        self.control_panel.disable_export()
+
+        self.worker_thread = threading.Thread(
+            target=self._run_batch_compression,
+            daemon=True
+        )
+        self.worker_thread.start()
+
+    def _run_batch_compression(self):
+        """Run batch compression outside the Tkinter main loop."""
+        summary = process_dataset(
+            files=self.files_list,
+            algorithm="deflate",
+            output_dir=Path("outputs") / "deflate",
+            progress_callback=self._queue_progress_update,
+            cancel_check=lambda: self.cancel_requested,
+        )
+        self.after(0, self._finish_compression, summary)
+
+    def _queue_progress_update(self, progress_percent, status_text):
+        """Schedule progress updates on the Tkinter main loop."""
+        self.after(
+            0,
+            lambda: self._apply_progress_update(progress_percent, status_text)
+        )
+
+    def _apply_progress_update(self, progress_percent, status_text):
+        """Apply progress updates to GUI controls."""
+        self.control_panel.set_progress(progress_percent)
+        self.control_panel.set_status(status_text)
+
+    def _cancel_compression(self):
+        """Request graceful cancellation after the active file finishes."""
+        if not self.is_compressing:
+            return
+
+        self.cancel_requested = True
+        self.control_panel.disable_cancel()
+        self.control_panel.set_status("Cancel diminta. File aktif akan diselesaikan dulu...")
+
+    def _finish_compression(self, summary):
+        """Restore GUI state after batch compression finishes."""
+        self.is_compressing = False
+        self.worker_thread = None
+        self.control_panel.enable_compress()
+        self.control_panel.disable_cancel()
+
+        if summary["cancelled"]:
+            self.control_panel.set_status(
+                f"Partial completion: {summary['completed']} selesai, {summary['failed']} gagal."
+            )
+            return
+
+        self.control_panel.set_progress(100)
+        self.control_panel.set_status(
+            f"Batch selesai: {summary['completed']} file diproses, {summary['failed']} gagal."
+        )
 
     def _select_previous_file(self):
         """Select previous file in the dataset."""

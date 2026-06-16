@@ -174,17 +174,17 @@ menjalankan kompresi seluruh dataset.
 
 Checklist:
 
-[ ] Loop seluruh file
+[x] Loop seluruh file
 
-[ ] Jalankan seluruh algoritma
+[x] Jalankan algoritma terpilih
 
-[ ] Simpan hasil
+[x] Simpan hasil
 
-[ ] Update progress
+[x] Update progress
 
-[ ] Implement cancel
+[x] Implement cancel
 
-[ ] Tangani partial completion
+[x] Tangani partial completion
 
 Output:
 
