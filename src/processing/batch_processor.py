@@ -45,6 +45,7 @@ def process_dataset(files, algorithm, output_dir, progress_callback, cancel_chec
         )
 
         result = compress_file(input_file, algorithm, output_dir)
+        result["input_path"] = str(input_file)
         results.append(result)
         metric = build_metric(input_file, algorithm, result)
         metrics.append(metric)

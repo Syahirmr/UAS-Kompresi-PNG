@@ -23,6 +23,7 @@ from src.ui.components_preview import PreviewComponent
 from src.ui.components_file_selector import FileSelectorComponent
 from src.ui.components_metrics import MetricsPanelComponent
 from src.analysis.analyzer import summarize_metrics
+from src.export.exporter import export_metrics_csv
 from src.processing.batch_processor import process_dataset
 from src.utils.dataset_loader import scan_png_folder, validate_dataset
 
@@ -55,6 +56,9 @@ class CompressionApp(tk.Tk):
         self.cancel_requested = False
         self.worker_thread = None
         self.metrics_data = []
+        self.metrics_summary = summarize_metrics([])
+        self.compressed_output_dir = Path("outputs") / "deflate"
+        self.compressed_outputs = {}
 
         # Wire GUI events
         self._bind_events()
@@ -142,6 +146,7 @@ class CompressionApp(tk.Tk):
         self.folder_picker.browse_btn.config(command=self._browse_dataset_folder)
         self.control_panel.compress_btn.config(command=self._start_compression)
         self.control_panel.cancel_btn.config(command=self._cancel_compression)
+        self.control_panel.export_btn.config(command=self._export_results)
         self.file_selector.prev_btn.config(command=self._select_previous_file)
         self.file_selector.next_btn.config(command=self._select_next_file)
         self.file_selector.file_list.bind(
@@ -167,6 +172,10 @@ class CompressionApp(tk.Tk):
 
         self.folder_picker.set_selected_folder(folder)
         self.files_list = scan_png_folder(folder)
+        self.compressed_outputs = {}
+        self.metrics_data = []
+        self.metrics_summary = summarize_metrics([])
+        self.control_panel.disable_export()
         self.file_labels = [
             str(file_path.relative_to(folder)) for file_path in self.files_list
         ]
@@ -178,7 +187,7 @@ class CompressionApp(tk.Tk):
 
         if self.files_list:
             self.current_file_index = 0
-            self.preview.display_original(self.files_list[0])
+            self._update_preview_current_file()
         else:
             self.current_file_index = 0
             self.preview.clear()
@@ -202,6 +211,8 @@ class CompressionApp(tk.Tk):
         self.control_panel.set_progress(0)
         self.control_panel.set_status("Memulai batch compression...")
         self.metrics_data = []
+        self.metrics_summary = summarize_metrics([])
+        self.compressed_outputs = {}
         self.metrics.reset()
         self.control_panel.disable_compress()
         self.control_panel.enable_cancel()
@@ -257,9 +268,13 @@ class CompressionApp(tk.Tk):
         self.worker_thread = None
         self.control_panel.enable_compress()
         self.control_panel.disable_cancel()
+        self._register_compressed_outputs(summary["results"])
+        self.metrics_summary = summary["summary"]
 
         if summary["cancelled"]:
             self.metrics.set_summary(summary["summary"])
+            self.after_idle(self._update_preview_current_file)
+            self._enable_export_if_ready()
             self.control_panel.set_status(
                 f"Partial completion: {summary['completed']} selesai, {summary['failed']} gagal."
             )
@@ -267,9 +282,40 @@ class CompressionApp(tk.Tk):
 
         self.control_panel.set_progress(100)
         self.metrics.set_summary(summary["summary"])
+        self.after_idle(self._update_preview_current_file)
+        self._enable_export_if_ready()
         self.control_panel.set_status(
             f"Batch selesai: {summary['completed']} file diproses, {summary['failed']} gagal."
         )
+
+    def _enable_export_if_ready(self):
+        """Enable export when batch has produced at least one metrics row."""
+        if self.metrics_data:
+            self.control_panel.enable_export()
+
+    def _export_results(self):
+        """Export latest metrics to a timestamped CSV report."""
+        if not self.metrics_data:
+            self.after(0, lambda: self.control_panel.set_status(
+                "Export gagal: belum ada metrics untuk diekspor."
+            ))
+            return
+
+        try:
+            output_path = export_metrics_csv(
+                metrics=self.metrics_data,
+                summary=self.metrics_summary,
+                output_dir=Path("outputs") / "reports",
+            )
+        except (OSError, KeyError) as exc:
+            self.after(0, lambda: self.control_panel.set_status(
+                f"Export gagal: {exc}"
+            ))
+            return
+
+        self.after(0, lambda path=output_path: self.control_panel.set_status(
+            f"Export berhasil: {path}"
+        ))
 
     def _select_previous_file(self):
         """Select previous file in the dataset."""
@@ -290,7 +336,35 @@ class CompressionApp(tk.Tk):
 
         self.current_file_index = index
         self.file_selector.select_index(index)
-        self.preview.display_original(self.files_list[index])
+        self._update_preview_current_file()
+
+    def _update_preview_current_file(self):
+        """Update original and compressed preview for the selected file."""
+        if not self.files_list:
+            self.preview.clear()
+            return
+
+        original_path = self.files_list[self.current_file_index]
+        compressed_path = self._get_compressed_output_path(original_path)
+        self.preview.display_images(original_path, compressed_path)
+
+    def _get_compressed_output_path(self, original_path):
+        """Return compressed output path when it exists, otherwise None."""
+        output_path = self.compressed_outputs.get(str(Path(original_path).resolve()))
+        if output_path and output_path.is_file():
+            return output_path
+        return None
+
+    def _register_compressed_outputs(self, results):
+        """Store output paths produced by the latest batch run."""
+        for result in results:
+            if not result.get("success"):
+                continue
+
+            input_path = result.get("input_path")
+            output_path = Path(result.get("output_path", ""))
+            if input_path and output_path.is_file():
+                self.compressed_outputs[str(Path(input_path).resolve())] = output_path
     
     
     def get_folder_picker(self):

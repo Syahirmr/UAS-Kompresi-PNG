@@ -15,17 +15,17 @@ menyiapkan struktur proyek agar siap dikembangkan.
 
 Checklist:
 
-[ ] Buat struktur folder project
+[x] Buat struktur folder project
 
-[ ] Buat virtual environment
+[x] Buat virtual environment
 
-[ ] Install dependency
+[x] Install dependency
 
-[ ] Generate requirements.txt
+[x] Generate requirements.txt
 
-[ ] Setup gitignore
+[x] Setup gitignore
 
-[ ] Verifikasi aplikasi dapat dijalankan
+[x] Verifikasi aplikasi dapat dijalankan
 
 Output:
 
@@ -50,25 +50,25 @@ membangun tampilan aplikasi desktop.
 
 Checklist:
 
-[ ] Buat main window
+[x] Buat main window
 
-[ ] Buat layout responsive
+[x] Buat layout responsive
 
-[ ] Tambahkan Folder Picker
+[x] Tambahkan Folder Picker
 
-[ ] Tambahkan tombol Compress
+[x] Tambahkan tombol Compress
 
-[ ] Tambahkan tombol Cancel
+[x] Tambahkan tombol Cancel
 
-[ ] Tambahkan tombol Export
+[x] Tambahkan tombol Export
 
-[ ] Tambahkan area Preview
+[x] Tambahkan area Preview
 
-[ ] Tambahkan Progress Bar
+[x] Tambahkan Progress Bar
 
-[ ] Tambahkan panel Metrics
+[x] Tambahkan panel Metrics
 
-[ ] Tambahkan File Selector
+[x] Tambahkan File Selector
 
 Output:
 
@@ -94,19 +94,19 @@ membaca dan memvalidasi dataset PNG.
 
 Checklist:
 
-[ ] Scan folder
+[x] Scan folder
 
-[ ] Cari file PNG
+[x] Cari file PNG
 
-[ ] Abaikan file non PNG
+[x] Abaikan file non PNG
 
-[ ] Hitung jumlah file
+[x] Hitung jumlah file
 
-[ ] Validasi minimum 10 file
+[x] Validasi minimum 10 file
 
-[ ] Tampilkan warning jika kurang
+[x] Tampilkan warning jika kurang
 
-[ ] Tampilkan daftar file
+[x] Tampilkan daftar file
 
 Output:
 
@@ -131,19 +131,19 @@ membuat sistem kompresi.
 
 Checklist:
 
-[ ] Implement Deflate Runner
+[x] Implement Deflate Runner
 
-[ ] Implement Zopfli Runner
+[x] Implement Zopfli Runner
 
-[ ] Implement OxiPNG Runner
+[x] Implement OxiPNG Runner
 
-[ ] Setup subprocess executor
+[x] Setup subprocess executor
 
-[ ] Setup output folder
+[x] Setup output folder
 
-[ ] Simpan hasil
+[x] Simpan hasil
 
-[ ] Tangani error
+[x] Tangani error
 
 Output:
 
@@ -244,17 +244,17 @@ menampilkan hasil ke GUI.
 
 Checklist:
 
-[ ] Preview original
+[x] Preview original
 
-[ ] Preview compressed
+[x] Preview compressed
 
-[ ] Fit image
+[x] Fit image
 
-[ ] Navigasi Prev
+[x] Navigasi Prev
 
-[ ] Navigasi Next
+[x] Navigasi Next
 
-[ ] File Selector
+[x] File Selector
 
 [ ] Ganti algoritma aktif
 
@@ -283,25 +283,25 @@ mengekspor hasil.
 
 Checklist:
 
-[ ] Generate CSV
+[x] Generate CSV
 
 [ ] Generate grafik ukuran
 
 [ ] Generate grafik waktu
 
-[ ] Export otomatis
+[x] Export manual via tombol Export
 
-[ ] Implement re-export
+[x] Implement re-export tanpa overwrite
 
 Output:
 
 outputs/reports/
 
-compression_results.csv
+report_YYYYMMDD_HHMMSS.csv
 
-size_comparison.png
+size_comparison.png (future)
 
-time_comparison.png
+time_comparison.png (future)
 
 Dependency:
 

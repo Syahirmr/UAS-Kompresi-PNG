@@ -21,6 +21,8 @@ class PreviewComponent(ttk.LabelFrame):
         self.pack(fill=tk.BOTH, expand=True, padx=PADDING_NORMAL, pady=PADDING_SMALL)
         self.original_image_path = None
         self.original_photo = None
+        self.compressed_image_path = None
+        self.compressed_photo = None
         
         # Preview container
         preview_frame = ttk.Frame(self)
@@ -33,16 +35,24 @@ class PreviewComponent(ttk.LabelFrame):
             padding=PADDING_NORMAL
         )
         original_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, PADDING_NORMAL))
+
+        self.original_preview_frame = tk.Frame(
+            original_panel,
+            width=PREVIEW_WIDTH,
+            height=PREVIEW_HEIGHT,
+            bg=BG_ACCENT
+        )
+        self.original_preview_frame.pack(anchor=tk.CENTER, expand=True)
+        self.original_preview_frame.pack_propagate(False)
+        self.original_preview_frame.grid_propagate(False)
         
         # Original image placeholder
         self.original_label = tk.Label(
-            original_panel,
+            self.original_preview_frame,
             text="[ ORIGINAL PREVIEW ]",
             font=FONT_NORMAL,
             fg=TEXT_SECONDARY,
             bg=BG_ACCENT,
-            width=40,
-            height=20,
             relief=tk.SUNKEN,
             borderwidth=1,
             justify=tk.CENTER
@@ -56,48 +66,54 @@ class PreviewComponent(ttk.LabelFrame):
             padding=PADDING_NORMAL
         )
         compressed_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(PADDING_NORMAL, 0))
+
+        self.compressed_preview_frame = tk.Frame(
+            compressed_panel,
+            width=PREVIEW_WIDTH,
+            height=PREVIEW_HEIGHT,
+            bg=BG_ACCENT
+        )
+        self.compressed_preview_frame.pack(anchor=tk.CENTER, expand=True)
+        self.compressed_preview_frame.pack_propagate(False)
+        self.compressed_preview_frame.grid_propagate(False)
         
         # Compressed preview placeholder
         self.compressed_label = tk.Label(
-            compressed_panel,
+            self.compressed_preview_frame,
             text="[ COMPRESSED PREVIEW ]",
             font=FONT_NORMAL,
             fg=TEXT_SECONDARY,
             bg=BG_ACCENT,
-            width=40,
-            height=20,
             relief=tk.SUNKEN,
             borderwidth=1,
             justify=tk.CENTER
         )
         self.compressed_label.pack(fill=tk.BOTH, expand=True)
-
-        self.original_label.bind("<Configure>", self._on_original_resize)
         
     
     def display_images(self, original_path, compressed_path):
         """
-        Display original image only for dataset loading milestone.
+        Display original and compressed images when available.
         """
         self.display_original(original_path)
-        self.compressed_label.config(text="[ COMPRESSED PREVIEW ]")
+        self.display_compressed(compressed_path)
 
     def display_original(self, original_path):
         """Load and display the original image fitted to the preview panel."""
         self.original_image_path = original_path
         self._render_original()
 
-    def _on_original_resize(self, event):
-        """Re-render preview when the label size changes."""
-        if self.original_image_path:
-            self._render_original()
+    def display_compressed(self, compressed_path):
+        """Load and display the compressed image when output exists."""
+        self.compressed_image_path = compressed_path
+        self._render_compressed()
 
     def _render_original(self):
         """Render original image while preserving aspect ratio."""
-        try:
-            with Image.open(self.original_image_path) as image:
-                image = image.copy()
-        except OSError:
+        photo = self._build_contained_photo(
+            self.original_image_path
+        )
+        if photo is None:
             self.original_photo = None
             self.original_label.config(
                 image="",
@@ -106,33 +122,59 @@ class PreviewComponent(ttk.LabelFrame):
             )
             return
 
-        max_width = self.original_label.winfo_width()
-        max_height = self.original_label.winfo_height()
-        if max_width <= 1 or max_height <= 1:
-            max_width = PREVIEW_WIDTH
-            max_height = PREVIEW_HEIGHT
+        self.original_photo = photo
+        self.original_label.config(image=self.original_photo, text="")
+
+    def _render_compressed(self):
+        """Render compressed image while preserving aspect ratio."""
+        photo = self._build_contained_photo(
+            self.compressed_image_path
+        )
+        if photo is None:
+            self.compressed_photo = None
+            self.compressed_label.config(
+                image="",
+                text="[ COMPRESSED PREVIEW ]",
+                fg=TEXT_SECONDARY
+            )
+            return
+
+        self.compressed_photo = photo
+        self.compressed_label.config(image=self.compressed_photo, text="")
+
+    def _build_contained_photo(self, image_path):
+        """Build a centered, contained PhotoImage from the source file."""
+        if not image_path:
+            return None
+
+        try:
+            with Image.open(image_path) as image:
+                image = image.copy()
+        except OSError:
+            return None
 
         image = ImageOps.contain(
             image,
-            (max_width, max_height),
+            (PREVIEW_WIDTH, PREVIEW_HEIGHT),
             Image.Resampling.LANCZOS
         )
 
-        preview_canvas = Image.new("RGBA", (max_width, max_height), BG_ACCENT)
-        offset_x = (max_width - image.width) // 2
-        offset_y = (max_height - image.height) // 2
+        preview_canvas = Image.new("RGBA", (PREVIEW_WIDTH, PREVIEW_HEIGHT), BG_ACCENT)
+        offset_x = (PREVIEW_WIDTH - image.width) // 2
+        offset_y = (PREVIEW_HEIGHT - image.height) // 2
 
         if image.mode == "RGBA":
             preview_canvas.paste(image, (offset_x, offset_y), image)
         else:
             preview_canvas.paste(image, (offset_x, offset_y))
 
-        self.original_photo = ImageTk.PhotoImage(preview_canvas)
-        self.original_label.config(image=self.original_photo, text="")
+        return ImageTk.PhotoImage(preview_canvas)
 
     def clear(self):
         """Clear preview placeholders."""
         self.original_image_path = None
         self.original_photo = None
+        self.compressed_image_path = None
+        self.compressed_photo = None
         self.original_label.config(image="", text="[ ORIGINAL PREVIEW ]")
-        self.compressed_label.config(text="[ COMPRESSED PREVIEW ]")
+        self.compressed_label.config(image="", text="[ COMPRESSED PREVIEW ]")
