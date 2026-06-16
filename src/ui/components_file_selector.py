@@ -131,12 +131,38 @@ class FileSelectorComponent(ttk.LabelFrame):
         self.file_list['values'] = file_list
         if file_list:
             self.file_list.current(0)
+            self.current_file_var.set(file_list[0])
             self._update_counter(0, len(file_list))
             self.next_btn.config(state=tk.NORMAL if len(file_list) > 1 else tk.DISABLED)
+        else:
+            self.clear()
     
     def get_current_file(self):
         """Get currently selected file."""
         return self.file_list.get()
+
+    def get_current_index(self):
+        """Get selected file index."""
+        return self.file_list.current()
+
+    def select_index(self, index):
+        """Select file by index and update navigation state."""
+        values = list(self.file_list['values'])
+        if not values or index < 0 or index >= len(values):
+            return
+
+        self.file_list.current(index)
+        self.current_file_var.set(values[index])
+        self._update_counter(index, len(values))
+
+    def clear(self):
+        """Clear all file selector values."""
+        self.file_list['values'] = []
+        self.file_list.set("")
+        self.current_file_var.set("No file selected")
+        self.file_info_var.set("0/0")
+        self.prev_btn.config(state=tk.DISABLED)
+        self.next_btn.config(state=tk.DISABLED)
     
     def _update_counter(self, current, total):
         """Update file counter display."""

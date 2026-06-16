@@ -8,7 +8,7 @@ from tkinter import ttk
 from src.utils.config import (
     FONT_NORMAL, FONT_HEADING, BG_ACCENT,
     TEXT_PRIMARY, BUTTON_BG, BUTTON_FG,
-    PADDING_NORMAL, PADDING_SMALL
+    SUCCESS_COLOR, ERROR_COLOR, PADDING_NORMAL, PADDING_SMALL
 )
 
 
@@ -20,6 +20,7 @@ class FolderPickerComponent(ttk.LabelFrame):
         self.pack(fill=tk.X, padx=PADDING_NORMAL, pady=PADDING_SMALL)
         
         self.selected_folder = tk.StringVar(value="No folder selected")
+        self.validation_status = tk.StringVar(value="Dataset belum dipilih")
         
         # Container frame
         container = ttk.Frame(self)
@@ -85,6 +86,17 @@ class FolderPickerComponent(ttk.LabelFrame):
             bg=BG_ACCENT
         )
         count_label.pack(side=tk.RIGHT)
+
+        # Validation status
+        self.status_label = tk.Label(
+            container,
+            textvariable=self.validation_status,
+            font=FONT_NORMAL,
+            fg=TEXT_PRIMARY,
+            bg=BG_ACCENT,
+            justify=tk.LEFT
+        )
+        self.status_label.pack(anchor=tk.W, fill=tk.X, pady=(PADDING_NORMAL, 0))
     
     
     def get_selected_folder(self):
@@ -94,3 +106,12 @@ class FolderPickerComponent(ttk.LabelFrame):
     def set_file_count(self, count):
         """Update file count display."""
         self.file_count_var.set(f"Files found: {count}")
+
+    def set_selected_folder(self, folder_path):
+        """Update selected folder display."""
+        self.selected_folder.set(str(folder_path))
+
+    def set_validation_status(self, message, valid=False):
+        """Update dataset validation status."""
+        self.validation_status.set(message)
+        self.status_label.config(fg=SUCCESS_COLOR if valid else ERROR_COLOR)

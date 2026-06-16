@@ -4,7 +4,7 @@ PNG Compression Comparison System
 """
 
 import tkinter as tk
-from tkinter import ttk
+from tkinter import filedialog, messagebox, ttk
 import sys
 from pathlib import Path
 
@@ -21,6 +21,7 @@ from src.ui.components_control import ControlPanelComponent
 from src.ui.components_preview import PreviewComponent
 from src.ui.components_file_selector import FileSelectorComponent
 from src.ui.components_metrics import MetricsPanelComponent
+from src.utils.dataset_loader import scan_png_folder, validate_dataset
 
 
 class CompressionApp(tk.Tk):
@@ -46,7 +47,11 @@ class CompressionApp(tk.Tk):
         # State tracking
         self.is_compressing = False
         self.files_list = []
+        self.file_labels = []
         self.current_file_index = 0
+
+        # Wire GUI events
+        self._bind_events()
     
     def _configure_styles(self):
         """Configure custom Tkinter styles."""
@@ -125,6 +130,74 @@ class CompressionApp(tk.Tk):
         canvas.configure(scrollregion=canvas.bbox("all"))
         
         # Scrolling and resize behavior may be added in future milestones
+
+    def _bind_events(self):
+        """Bind GUI events for dataset loading and file navigation."""
+        self.folder_picker.browse_btn.config(command=self._browse_dataset_folder)
+        self.file_selector.prev_btn.config(command=self._select_previous_file)
+        self.file_selector.next_btn.config(command=self._select_next_file)
+        self.file_selector.file_list.bind(
+            "<<ComboboxSelected>>",
+            self._select_file_from_dropdown
+        )
+
+    def _browse_dataset_folder(self):
+        """Open a folder dialog and load PNG dataset files."""
+        folder_path = filedialog.askdirectory(
+            title="Pilih Folder Dataset PNG",
+            mustexist=True
+        )
+        if not folder_path:
+            return
+
+        folder = Path(folder_path)
+        if not folder.is_dir():
+            message = "Folder tidak valid."
+            self.folder_picker.set_validation_status(message, valid=False)
+            messagebox.showerror("Folder Invalid", message)
+            return
+
+        self.folder_picker.set_selected_folder(folder)
+        self.files_list = scan_png_folder(folder)
+        self.file_labels = [
+            str(file_path.relative_to(folder)) for file_path in self.files_list
+        ]
+
+        valid, message = validate_dataset(self.files_list)
+        self.folder_picker.set_file_count(len(self.files_list))
+        self.folder_picker.set_validation_status(message, valid=valid)
+        self.file_selector.populate_files(self.file_labels)
+
+        if self.files_list:
+            self.current_file_index = 0
+            self.preview.display_original(self.files_list[0])
+        else:
+            self.current_file_index = 0
+            self.preview.clear()
+
+        if not valid:
+            messagebox.showwarning("Dataset Belum Valid", message)
+
+    def _select_previous_file(self):
+        """Select previous file in the dataset."""
+        self._select_file_by_index(self.current_file_index - 1)
+
+    def _select_next_file(self):
+        """Select next file in the dataset."""
+        self._select_file_by_index(self.current_file_index + 1)
+
+    def _select_file_from_dropdown(self, event=None):
+        """Select file from dropdown change."""
+        self._select_file_by_index(self.file_selector.get_current_index())
+
+    def _select_file_by_index(self, index):
+        """Select file and update original preview."""
+        if not self.files_list or index < 0 or index >= len(self.files_list):
+            return
+
+        self.current_file_index = index
+        self.file_selector.select_index(index)
+        self.preview.display_original(self.files_list[index])
     
     
     def get_folder_picker(self):
