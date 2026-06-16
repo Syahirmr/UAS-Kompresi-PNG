@@ -1,0 +1,15 @@
+# PNG Compression Comparison System - Requirements
+# Minimal dependencies for core functionality
+
+# Image Processing
+Pillow==12.1.1
+
+# Data Analysis & CSV Export
+pandas==3.0.1
+
+# Visualization & Charts
+matplotlib==3.10.8
+numpy==2.4.2
+
+# Compression Algorithm
+zopfli==0.4.3
