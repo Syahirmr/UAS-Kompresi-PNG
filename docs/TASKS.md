@@ -293,6 +293,8 @@ Checklist:
 
 [x] Implement re-export tanpa overwrite
 
+[x] Error handling export di GUI
+
 Output:
 
 outputs/reports/
@@ -322,19 +324,25 @@ memastikan aplikasi stabil.
 
 Checklist:
 
-[ ] Logging aplikasi
+[x] Logging aplikasi
 
-[ ] Logging kompresi
+[x] Logging kompresi
 
-[ ] Logging error
+[x] Logging error
 
-[ ] Logging cancel
+[x] Logging cancel
 
-[ ] Logging export
+[x] Logging export
+
+[x] Session log auto-generate
+
+[x] Error handling logging (FileNotFoundError, PermissionError, OSError, RuntimeError)
 
 Output:
 
 logs/app.log
+
+logs/session_YYYYMMDD_HHMMSS.log
 
 Dependency:
 
@@ -348,24 +356,32 @@ Estimated:
 
 ---
 
-# MILESTONE 9 — TESTING
+# MILESTONE 9 — TESTING & POLISH
 
 Tujuan:
 validasi aplikasi.
 
 Checklist:
 
-[ ] Uji dataset ≥10
+[x] test_dataset_loader.py — scan, validate, hidden, corrupted, empty
 
-[ ] Uji cancel
+[x] test_compressor.py — compress_file, error cases, unknown algorithm
 
-[ ] Uji export
+[x] test_batch_processor.py — happy path, cancel, empty dataset
 
-[ ] Uji preview
+[x] test_metrics.py — build_metric, summarize_metrics, edge cases
 
-[ ] Uji gagal kompresi
+[x] test_exporter.py — export CSV, no-overwrite, format, bytes_to_kb
 
-[ ] Uji performa
+[x] test_logger.py — logging no-crash, all events
+
+[x] Polish: disable browse_btn saat compression
+
+[x] Polish: clear stale status saat load dataset
+
+[x] Polish: WM_DELETE_WINDOW handler
+
+[x] 73/73 unit test passing
 
 Output:
 
@@ -387,7 +403,7 @@ Estimated:
 
 Checklist:
 
-[ ] Source Code
+[x] Source Code
 
 [ ] Dataset
 

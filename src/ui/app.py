@@ -26,6 +26,7 @@ from src.analysis.analyzer import summarize_metrics
 from src.export.exporter import export_metrics_csv
 from src.processing.batch_processor import process_dataset
 from src.utils.dataset_loader import scan_png_folder, validate_dataset
+from src.utils.logger import Logger
 
 
 class CompressionApp(tk.Tk):
@@ -62,6 +63,13 @@ class CompressionApp(tk.Tk):
 
         # Wire GUI events
         self._bind_events()
+
+        # Log startup
+        self.logger = Logger()
+        self.logger.app_start()
+
+        # Handle window close gracefully
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
     
     def _configure_styles(self):
         """Configure custom Tkinter styles."""
@@ -170,8 +178,12 @@ class CompressionApp(tk.Tk):
             messagebox.showerror("Folder Invalid", message)
             return
 
+        self.control_panel.set_status("Memuat dataset...")
         self.folder_picker.set_selected_folder(folder)
         self.files_list = scan_png_folder(folder)
+
+        valid, message = validate_dataset(self.files_list)
+        self.logger.dataset_loaded(str(folder), len(self.files_list), valid)
         self.compressed_outputs = {}
         self.metrics_data = []
         self.metrics_summary = summarize_metrics([])
@@ -180,7 +192,6 @@ class CompressionApp(tk.Tk):
             str(file_path.relative_to(folder)) for file_path in self.files_list
         ]
 
-        valid, message = validate_dataset(self.files_list)
         self.folder_picker.set_file_count(len(self.files_list))
         self.folder_picker.set_validation_status(message, valid=valid)
         self.file_selector.populate_files(self.file_labels)
@@ -217,6 +228,9 @@ class CompressionApp(tk.Tk):
         self.control_panel.disable_compress()
         self.control_panel.enable_cancel()
         self.control_panel.disable_export()
+        self.folder_picker.browse_btn.config(state=tk.DISABLED)
+
+        self.logger.compression_started("deflate", len(self.files_list))
 
         self.worker_thread = threading.Thread(
             target=self._run_batch_compression,
@@ -268,10 +282,14 @@ class CompressionApp(tk.Tk):
         self.worker_thread = None
         self.control_panel.enable_compress()
         self.control_panel.disable_cancel()
+        self.folder_picker.browse_btn.config(state=tk.NORMAL)
         self._register_compressed_outputs(summary["results"])
         self.metrics_summary = summary["summary"]
 
         if summary["cancelled"]:
+            self.logger.compression_cancelled(
+                summary["completed"], summary["failed"]
+            )
             self.metrics.set_summary(summary["summary"])
             self.after_idle(self._update_preview_current_file)
             self._enable_export_if_ready()
@@ -279,6 +297,20 @@ class CompressionApp(tk.Tk):
                 f"Partial completion: {summary['completed']} selesai, {summary['failed']} gagal."
             )
             return
+
+        self.logger.compression_finished(
+            summary["completed"], summary["failed"],
+            summary["summary"]["avg_reduction"],
+            summary["summary"]["avg_time_ms"],
+        )
+        self.logger.write_session_log(
+            dataset_path=str(self.folder_picker.get_selected_folder() or ""),
+            algorithm="deflate",
+            completed=summary["completed"],
+            failed=summary["failed"],
+            avg_reduction=summary["summary"]["avg_reduction"],
+            avg_time_ms=summary["summary"]["avg_time_ms"],
+        )
 
         self.control_panel.set_progress(100)
         self.metrics.set_summary(summary["summary"])
@@ -308,11 +340,14 @@ class CompressionApp(tk.Tk):
                 output_dir=Path("outputs") / "reports",
             )
         except (OSError, KeyError) as exc:
+            self.logger.export_failed(str(exc))
+            self.logger.log_exception(type(exc).__name__, str(exc))
             self.after(0, lambda: self.control_panel.set_status(
                 f"Export gagal: {exc}"
             ))
             return
 
+        self.logger.export_success(str(output_path))
         self.after(0, lambda path=output_path: self.control_panel.set_status(
             f"Export berhasil: {path}"
         ))
@@ -387,6 +422,12 @@ class CompressionApp(tk.Tk):
         """Get file selector component."""
         return self.file_selector
     
+    def _on_close(self):
+        """Clean shutdown when window is closed."""
+        self.cancel_requested = True
+        self.logger.info("app_close", "Application closed by user")
+        self.destroy()
+
     def run(self):
         """Start the application."""
         self.mainloop()
