@@ -82,23 +82,25 @@ class TestCompressFile(unittest.TestCase):
         )
         self.assertTrue(result["success"])
 
-    def test_compress_zopfli_raises_placeholder(self):
-        """Zopfli runner is a placeholder; expect failure."""
+    def test_compress_zopfli_success(self):
+        """Zopfli now works via Python package (not placeholder)."""
         result = compress_file(
             self.tmpdir / "test.png",
             "zopfli",
             self.outdir,
         )
-        self.assertFalse(result["success"])
+        self.assertTrue(result["success"])
+        self.assertGreater(result["output_size"], 0)
 
-    def test_compress_oxipng_raises_placeholder(self):
-        """OxiPNG runner is a placeholder; expect failure."""
+    def test_compress_oxipng_success(self):
+        """OxiPNG now works when executable is available."""
         result = compress_file(
             self.tmpdir / "test.png",
             "oxipng",
             self.outdir,
         )
-        self.assertFalse(result["success"])
+        self.assertTrue(result["success"])
+        self.assertGreater(result["output_size"], 0)
 
     # ---------- output directory creation ----------
 

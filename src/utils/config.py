@@ -38,6 +38,17 @@ BORDER_RADIUS = 5
 SECTION_HEADER_HEIGHT = 50
 SECTION_PADDING = 10
 
+# Algorithm timeouts (seconds)
+DEFLATE_TIMEOUT = None       # unlimited
+OXIPNG_TIMEOUT = 120
+ZOPFLI_TIMEOUT = 60
+
+# Algorithm tuning
+ZOPFLI_MAX_ITERATIONS = 15
+
 # Preview
 PREVIEW_WIDTH = 350
 PREVIEW_HEIGHT = 350
+
+# Comparison ETA window (number of recent files to average)
+COMPARISON_ETA_WINDOW = 5

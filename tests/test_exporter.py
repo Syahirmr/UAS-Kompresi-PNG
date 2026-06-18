@@ -3,6 +3,7 @@ Unit tests for src.export.exporter
 """
 
 import unittest
+import unittest.mock
 import tempfile
 import shutil
 from pathlib import Path
@@ -133,9 +134,13 @@ class TestBuildReportPath(unittest.TestCase):
         self.assertEqual(path.suffix, ".csv")
 
     def test_appends_counter_on_collision(self):
-        p1 = _build_report_path(self.tmpdir)
-        p1.touch()  # occupy first name
-        p2 = _build_report_path(self.tmpdir)
+        fixed_ts = "20260617_163122_483"
+        with unittest.mock.patch(
+            "src.export.exporter._timestamp_ms", return_value=fixed_ts
+        ):
+            p1 = _build_report_path(self.tmpdir)
+            p1.touch()  # occupy first name
+            p2 = _build_report_path(self.tmpdir)
         self.assertNotEqual(p1, p2)
         self.assertIn("_1.", p2.name)
 
