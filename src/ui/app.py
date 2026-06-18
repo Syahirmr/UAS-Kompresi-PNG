@@ -216,6 +216,7 @@ class CompressionApp(ctk.CTk):
         else:
             self.current_file_index = 0
             self.preview.clear()
+        self.preview.hide_algorithm_selector()
 
         if not valid:
             messagebox.showwarning("Dataset Belum Valid", message)
@@ -252,6 +253,7 @@ class CompressionApp(ctk.CTk):
         self.compressed_outputs = {}
         self.comparison_results = None
         self.metrics.reset()
+        self.preview.show_algorithm_selector()
 
         self.control_panel.disable_compress()
         self.control_panel.disable_comparison()
@@ -437,6 +439,7 @@ class CompressionApp(ctk.CTk):
         self.metrics_summary = summarize_metrics([])
         self.compressed_outputs = {}
         self.metrics.reset()
+        self.preview.hide_algorithm_selector()
         algorithm = self.control_panel.get_algorithm()
         self.selected_algorithm = algorithm
 

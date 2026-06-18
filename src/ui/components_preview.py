@@ -118,6 +118,17 @@ class PreviewComponent(ctk.CTkFrame):
             text_color=TEXT_SECONDARY
         )
         self.compressed_label.pack(fill="both", expand=True)
+        
+        # Hide segment button by default at startup
+        self.algo_segment.pack_forget()
+
+    def show_algorithm_selector(self):
+        """Show the segmented button algorithm selector before the preview frame."""
+        self.algo_segment.pack(anchor="w", padx=PADDING_NORMAL, pady=(0, 10), before=self.compressed_preview_frame)
+
+    def hide_algorithm_selector(self):
+        """Hide the segmented button algorithm selector."""
+        self.algo_segment.pack_forget()
 
     def _on_algo_segment_change(self, value):
         """Handle algorithm selection change in preview panel."""
