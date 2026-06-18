@@ -149,10 +149,31 @@ class CompressionApp(ctk.CTk):
         self.file_selector.next_btn.configure(command=self._select_next_file)
         self.file_selector.set_change_callback(self._select_file_from_dropdown)
         self.control_panel.set_change_callback(self._on_algorithm_selection_changed)
+        self.preview.set_algorithm_change_callback(self._on_preview_algorithm_changed)
 
     def _on_algorithm_selection_changed(self, algorithm_key):
-        """Handle algorithm selection change to update preview and internal state."""
+        """Handle algorithm selection change from control panel to update preview."""
         self.selected_algorithm = algorithm_key
+        # Sync preview segmented button
+        mapping = {
+            "deflate": "Deflate Baseline",
+            "zopfli": "Zopfli",
+            "oxipng": "OxiPNG"
+        }
+        self.preview.set_selected_algorithm_label(mapping.get(algorithm_key, "Deflate Baseline"))
+        self._update_preview_current_file()
+
+    def _on_preview_algorithm_changed(self, algorithm_key):
+        """Handle algorithm selection change from preview card to update control panel and preview."""
+        self.selected_algorithm = algorithm_key
+        # Sync control panel dropdown
+        mapping = {
+            "deflate": "Deflate Baseline",
+            "zopfli": "Zopfli",
+            "oxipng": "OxiPNG"
+        }
+        self.control_panel.algorithm_var.set(mapping.get(algorithm_key, "Deflate Baseline"))
+        self.control_panel._on_algorithm_change() # Update warning label
         self._update_preview_current_file()
 
     def _browse_dataset_folder(self):

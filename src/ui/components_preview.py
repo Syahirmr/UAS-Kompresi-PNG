@@ -8,7 +8,8 @@ from PIL import Image, ImageOps
 from src.utils.config import (
     FONT_NORMAL, BG_ACCENT, BG_PRIMARY,
     TEXT_PRIMARY, TEXT_SECONDARY, PADDING_NORMAL,
-    PADDING_SMALL, PREVIEW_WIDTH, PREVIEW_HEIGHT
+    PADDING_SMALL, PREVIEW_WIDTH, PREVIEW_HEIGHT,
+    BUTTON_BG, BUTTON_HOVER
 )
 
 
@@ -23,6 +24,7 @@ class PreviewComponent(ctk.CTkFrame):
         self.original_ctk_image = None
         self.compressed_image_path = None
         self.compressed_ctk_image = None
+        self.algo_change_callback = None
         
         # Grid layout for side-by-side panels
         self.grid_columnconfigure(0, weight=1)
@@ -85,6 +87,20 @@ class PreviewComponent(ctk.CTkFrame):
         )
         compressed_title.pack(anchor="w", padx=PADDING_NORMAL, pady=(PADDING_NORMAL, 5))
         
+        # Segmented button for algorithm preview selection
+        self.algo_segment = ctk.CTkSegmentedButton(
+            self.compressed_card,
+            values=["Deflate Baseline", "Zopfli", "OxiPNG"],
+            command=self._on_algo_segment_change,
+            fg_color=BG_PRIMARY,
+            selected_color=BUTTON_BG,
+            selected_hover_color=BUTTON_HOVER,
+            text_color=TEXT_PRIMARY,
+            height=30
+        )
+        self.algo_segment.set("Deflate Baseline")
+        self.algo_segment.pack(anchor="w", padx=PADDING_NORMAL, pady=(0, 10))
+        
         self.compressed_preview_frame = ctk.CTkFrame(
             self.compressed_card,
             width=PREVIEW_WIDTH,
@@ -102,6 +118,25 @@ class PreviewComponent(ctk.CTkFrame):
             text_color=TEXT_SECONDARY
         )
         self.compressed_label.pack(fill="both", expand=True)
+
+    def _on_algo_segment_change(self, value):
+        """Handle algorithm selection change in preview panel."""
+        if self.algo_change_callback:
+            mapping = {
+                "Deflate Baseline": "deflate",
+                "Zopfli": "zopfli",
+                "OxiPNG": "oxipng"
+            }
+            key = mapping.get(value, "deflate")
+            self.algo_change_callback(key)
+
+    def set_algorithm_change_callback(self, callback):
+        """Set callback for algorithm change in preview segment."""
+        self.algo_change_callback = callback
+
+    def set_selected_algorithm_label(self, label):
+        """Update the selected segment label."""
+        self.algo_segment.set(label)
         
     def display_images(self, original_path, compressed_path):
         """Display original and compressed images when available."""
