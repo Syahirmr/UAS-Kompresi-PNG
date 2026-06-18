@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import threading
 from pathlib import Path
+import customtkinter as ctk
 
 from src.utils.config import (
     WINDOW_TITLE, WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT,
@@ -38,25 +39,23 @@ ALGORITHM_OUTPUT_DIRS = {
 }
 
 
-class CompressionApp(tk.Tk):
+class CompressionApp(ctk.CTk):
     """Main GUI Application for PNG Compression Comparison System."""
 
     def __init__(self):
         super().__init__()
+
+        # Configure appearance and theme
+        ctk.set_appearance_mode("Dark")  # Default to Dark Mode
+        ctk.set_default_color_theme("blue")
 
         # Configure window
         self.title(WINDOW_TITLE)
         self.geometry(WINDOW_GEOMETRY)
         self.minsize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
 
-        # Configure style
-        self._configure_styles()
-
         # Configure background
-        self.configure(bg=BG_PRIMARY)
-
-        # Build GUI
-        self._build_gui()
+        self.configure(fg_color=BG_PRIMARY)
 
         # State tracking
         self.is_compressing = False
@@ -76,6 +75,9 @@ class CompressionApp(tk.Tk):
 
         self.comparison_results = None
 
+        # Build GUI
+        self._build_gui()
+
         # Wire GUI events
         self._bind_events()
 
@@ -86,63 +88,41 @@ class CompressionApp(tk.Tk):
         # Handle window close gracefully
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
-    def _configure_styles(self):
-        """Configure custom Tkinter styles."""
-        style = ttk.Style()
-
-        # Configure theme
-        style.theme_use('clam')
-
-        # Configure custom frames
-        style.configure('Header.TFrame', background=BG_SECONDARY)
-        style.configure('TLabelframe', background=BG_PRIMARY, foreground="#333333")
-        style.configure('TLabelframe.Label', background=BG_PRIMARY, foreground="#333333")
-        style.configure('TFrame', background=BG_PRIMARY)
-        style.configure('TLabel', background=BG_PRIMARY, foreground="#333333")
+    def _toggle_theme(self):
+        """Toggle between Light and Dark appearance modes."""
+        current_mode = ctk.get_appearance_mode()
+        new_mode = "Light" if current_mode == "Dark" else "Dark"
+        ctk.set_appearance_mode(new_mode)
+        # Notify components to update standard TK widgets (like Treeviews)
+        self.metrics.update_theme_styles()
 
     def _build_gui(self):
-        """Build the main GUI layout."""
-
-        # Main container with scrolling
-        main_frame = ttk.Frame(self)
-        main_frame.pack(fill=tk.BOTH, expand=True)
-
-        # Canvas for scrolling support
-        canvas = tk.Canvas(
-            main_frame,
-            bg=BG_PRIMARY,
-            highlightthickness=0
+        """Build the main GUI layout using CTKScrollableFrame."""
+        # Main scrollable container
+        self.content_frame = ctk.CTkScrollableFrame(
+            self,
+            fg_color=BG_PRIMARY,
+            corner_radius=0
         )
-        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-        # Scrollbar
-        scrollbar = ttk.Scrollbar(main_frame, orient=tk.VERTICAL, command=canvas.yview)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
-        # Configure canvas
-        canvas.configure(yscrollcommand=scrollbar.set)
-
-        # Frame inside canvas for content
-        content_frame = ttk.Frame(canvas)
-        canvas.create_window((0, 0), window=content_frame, anchor=tk.NW)
+        self.content_frame.pack(fill=tk.BOTH, expand=True)
 
         # ============ LAYOUT STRUCTURE ============
 
         # 1. Header
-        header = HeaderComponent(content_frame)
+        header = HeaderComponent(self.content_frame, toggle_theme_callback=self._toggle_theme)
 
         # 2. Folder Picker
-        self.folder_picker = FolderPickerComponent(content_frame)
+        self.folder_picker = FolderPickerComponent(self.content_frame)
 
         # 3. Control Panel
-        self.control_panel = ControlPanelComponent(content_frame)
+        self.control_panel = ControlPanelComponent(self.content_frame)
 
         # 4. Main Content Frame (split into left and right)
-        main_content = ttk.Frame(content_frame)
+        main_content = ctk.CTkFrame(self.content_frame, fg_color="transparent")
         main_content.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
         # Left side - Preview & Metrics (stacked)
-        left_frame = ttk.Frame(main_content)
+        left_frame = ctk.CTkFrame(main_content, fg_color="transparent")
         left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
 
         # Preview
@@ -152,29 +132,28 @@ class CompressionApp(tk.Tk):
         self.metrics = MetricsPanelComponent(left_frame)
 
         # Right side - File Selector
-        right_frame = ttk.Frame(main_content)
+        right_frame = ctk.CTkFrame(main_content, fg_color="transparent")
         right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=False, padx=(5, 0))
 
         # File Selector
         self.file_selector = FileSelectorComponent(right_frame)
 
-        # Update scroll region
-        content_frame.update_idletasks()
-        canvas.configure(scrollregion=canvas.bbox("all"))
-
     def _bind_events(self):
         """Bind GUI events for dataset loading and file navigation."""
-        self.folder_picker.browse_btn.config(command=self._browse_dataset_folder)
-        self.control_panel.compress_btn.config(command=self._start_compression)
-        self.control_panel.comparison_btn.config(command=self._start_comparison)
-        self.control_panel.cancel_btn.config(command=self._cancel_compression)
-        self.control_panel.export_btn.config(command=self._export_results)
-        self.file_selector.prev_btn.config(command=self._select_previous_file)
-        self.file_selector.next_btn.config(command=self._select_next_file)
-        self.file_selector.file_list.bind(
-            "<<ComboboxSelected>>",
-            self._select_file_from_dropdown
-        )
+        self.folder_picker.browse_btn.configure(command=self._browse_dataset_folder)
+        self.control_panel.compress_btn.configure(command=self._start_compression)
+        self.control_panel.comparison_btn.configure(command=self._start_comparison)
+        self.control_panel.cancel_btn.configure(command=self._cancel_compression)
+        self.control_panel.export_btn.configure(command=self._export_results)
+        self.file_selector.prev_btn.configure(command=self._select_previous_file)
+        self.file_selector.next_btn.configure(command=self._select_next_file)
+        self.file_selector.set_change_callback(self._select_file_from_dropdown)
+        self.control_panel.set_change_callback(self._on_algorithm_selection_changed)
+
+    def _on_algorithm_selection_changed(self, algorithm_key):
+        """Handle algorithm selection change to update preview and internal state."""
+        self.selected_algorithm = algorithm_key
+        self._update_preview_current_file()
 
     def _browse_dataset_folder(self):
         """Open a folder dialog and load PNG dataset files."""
@@ -258,7 +237,7 @@ class CompressionApp(tk.Tk):
         self.control_panel.disable_algorithm_selector()
         self.control_panel.enable_cancel()
         self.control_panel.disable_export()
-        self.folder_picker.browse_btn.config(state=tk.DISABLED)
+        self.folder_picker.browse_btn.configure(state="disabled")
 
         self.logger.compression_started("comparison", len(self.files_list) * 3)
 
@@ -325,7 +304,7 @@ class CompressionApp(tk.Tk):
         self.control_panel.enable_comparison()
         self.control_panel.enable_algorithm_selector()
         self.control_panel.disable_cancel()
-        self.folder_picker.browse_btn.config(state=tk.NORMAL)
+        self.folder_picker.browse_btn.configure(state="normal")
 
         winners = comparison_result["winners"]
         per_algorithm = comparison_result["per_algorithm"]
@@ -371,6 +350,7 @@ class CompressionApp(tk.Tk):
             )
 
         self.control_panel.set_progress(100)
+        self.after_idle(self._update_preview_current_file)
 
     # BUG-2 fix: store per-algorithm outputs
     def _register_comparison_outputs(self, per_algorithm):
@@ -444,7 +424,7 @@ class CompressionApp(tk.Tk):
         self.control_panel.disable_algorithm_selector()
         self.control_panel.enable_cancel()
         self.control_panel.disable_export()
-        self.folder_picker.browse_btn.config(state=tk.DISABLED)
+        self.folder_picker.browse_btn.configure(state="disabled")
 
         self.logger.compression_started(algorithm, len(self.files_list))
 
@@ -523,7 +503,7 @@ class CompressionApp(tk.Tk):
         self.control_panel.enable_comparison()
         self.control_panel.enable_algorithm_selector()
         self.control_panel.disable_cancel()
-        self.folder_picker.browse_btn.config(state=tk.NORMAL)
+        self.folder_picker.browse_btn.configure(state="normal")
         self._register_compressed_outputs(summary["results"], algorithm)
         self.metrics_summary = summary["summary"]
 

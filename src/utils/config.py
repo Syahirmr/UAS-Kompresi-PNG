@@ -8,18 +8,18 @@ WINDOW_MIN_WIDTH = 1200
 WINDOW_MIN_HEIGHT = 800
 WINDOW_GEOMETRY = "1400x900"
 
-# Colors
-BG_PRIMARY = "#f0f0f0"
-BG_SECONDARY = "#e8e8e8"
-BG_ACCENT = "#ffffff"
-TEXT_PRIMARY = "#333333"
-TEXT_SECONDARY = "#666666"
-BUTTON_BG = "#0078d4"
+# Colors (Light Mode, Dark Mode)
+BG_PRIMARY = ("#f3f3f3", "#1e1e1e")
+BG_SECONDARY = ("#eaeaea", "#252526")
+BG_ACCENT = ("#ffffff", "#2d2d30")
+TEXT_PRIMARY = ("#1e1e1e", "#ffffff")
+TEXT_SECONDARY = ("#606060", "#aaaaaa")
+BUTTON_BG = ("#0078d4", "#1f77b4")
 BUTTON_FG = "#ffffff"
-BUTTON_HOVER = "#1084d8"
-PROGRESS_COLOR = "#0078d4"
-SUCCESS_COLOR = "#107c10"
-ERROR_COLOR = "#d83b01"
+BUTTON_HOVER = ("#1084d8", "#2c89c7")
+PROGRESS_COLOR = ("#0078d4", "#1f77b4")
+SUCCESS_COLOR = ("#107c10", "#2ea44f")
+ERROR_COLOR = ("#d83b01", "#da3637")
 
 # Fonts
 FONT_TITLE = ("Segoe UI", 12, "bold")

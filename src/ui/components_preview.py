@@ -3,98 +3,108 @@ Preview Component
 Side-by-side image preview display
 """
 
-import tkinter as tk
-from tkinter import ttk
-from PIL import Image, ImageOps, ImageTk
+import customtkinter as ctk
+from PIL import Image, ImageOps
 from src.utils.config import (
-    FONT_NORMAL, BG_ACCENT,
-    TEXT_SECONDARY, PADDING_NORMAL,
+    FONT_NORMAL, BG_ACCENT, BG_PRIMARY,
+    TEXT_PRIMARY, TEXT_SECONDARY, PADDING_NORMAL,
     PADDING_SMALL, PREVIEW_WIDTH, PREVIEW_HEIGHT
 )
 
 
-class PreviewComponent(ttk.LabelFrame):
-    """Side-by-side preview of original and compressed images."""
+class PreviewComponent(ctk.CTkFrame):
+    """Side-by-side preview of original and compressed images styled as modern cards."""
     
     def __init__(self, parent):
-        super().__init__(parent, text="Preview Results", padding=PADDING_NORMAL)
-        self.pack(fill=tk.BOTH, expand=True, padx=PADDING_NORMAL, pady=PADDING_SMALL)
+        super().__init__(parent, fg_color="transparent")
+        self.pack(fill="both", expand=True, padx=PADDING_NORMAL, pady=PADDING_SMALL)
+        
         self.original_image_path = None
-        self.original_photo = None
+        self.original_ctk_image = None
         self.compressed_image_path = None
-        self.compressed_photo = None
+        self.compressed_ctk_image = None
         
-        # Preview container
-        preview_frame = ttk.Frame(self)
-        preview_frame.pack(fill=tk.BOTH, expand=True)
+        # Grid layout for side-by-side panels
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
         
-        # Original image panel
-        original_panel = ttk.LabelFrame(
-            preview_frame,
-            text="Original Image",
-            padding=PADDING_NORMAL
+        # Original Image Card
+        self.original_card = ctk.CTkFrame(
+            self,
+            fg_color=BG_ACCENT,
+            corner_radius=8,
+            border_width=1,
+            border_color=("#dddddd", "#3f3f3f")
         )
-        original_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, PADDING_NORMAL))
-
-        self.original_preview_frame = tk.Frame(
-            original_panel,
+        self.original_card.grid(row=0, column=0, padx=(0, PADDING_NORMAL), sticky="nsew")
+        
+        original_title = ctk.CTkLabel(
+            self.original_card,
+            text="Original Image",
+            font=ctk.CTkFont(family=FONT_NORMAL[0], size=FONT_NORMAL[1], weight="bold"),
+            text_color=TEXT_PRIMARY
+        )
+        original_title.pack(anchor="w", padx=PADDING_NORMAL, pady=(PADDING_NORMAL, 5))
+        
+        # Preview Frame (Canvas area)
+        self.original_preview_frame = ctk.CTkFrame(
+            self.original_card,
             width=PREVIEW_WIDTH,
             height=PREVIEW_HEIGHT,
-            bg=BG_ACCENT
+            fg_color=BG_PRIMARY,
+            corner_radius=6
         )
-        self.original_preview_frame.pack(anchor=tk.CENTER, expand=True)
+        self.original_preview_frame.pack(anchor="center", expand=True, fill="both", padx=PADDING_NORMAL, pady=(0, PADDING_NORMAL))
         self.original_preview_frame.pack_propagate(False)
-        self.original_preview_frame.grid_propagate(False)
         
-        # Original image placeholder
-        self.original_label = tk.Label(
+        # Label displaying image/text
+        self.original_label = ctk.CTkLabel(
             self.original_preview_frame,
             text="[ ORIGINAL PREVIEW ]",
-            font=FONT_NORMAL,
-            fg=TEXT_SECONDARY,
-            bg=BG_ACCENT,
-            relief=tk.SUNKEN,
-            borderwidth=1,
-            justify=tk.CENTER
+            font=ctk.CTkFont(family=FONT_NORMAL[0], size=FONT_NORMAL[1]),
+            text_color=TEXT_SECONDARY
         )
-        self.original_label.pack(fill=tk.BOTH, expand=True)
+        self.original_label.pack(fill="both", expand=True)
         
-        # Compressed image panel
-        compressed_panel = ttk.LabelFrame(
-            preview_frame,
-            text="Compressed Image",
-            padding=PADDING_NORMAL
+        # Compressed Image Card
+        self.compressed_card = ctk.CTkFrame(
+            self,
+            fg_color=BG_ACCENT,
+            corner_radius=8,
+            border_width=1,
+            border_color=("#dddddd", "#3f3f3f")
         )
-        compressed_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(PADDING_NORMAL, 0))
-
-        self.compressed_preview_frame = tk.Frame(
-            compressed_panel,
+        self.compressed_card.grid(row=0, column=1, padx=(PADDING_NORMAL, 0), sticky="nsew")
+        
+        compressed_title = ctk.CTkLabel(
+            self.compressed_card,
+            text="Compressed Image",
+            font=ctk.CTkFont(family=FONT_NORMAL[0], size=FONT_NORMAL[1], weight="bold"),
+            text_color=TEXT_PRIMARY
+        )
+        compressed_title.pack(anchor="w", padx=PADDING_NORMAL, pady=(PADDING_NORMAL, 5))
+        
+        self.compressed_preview_frame = ctk.CTkFrame(
+            self.compressed_card,
             width=PREVIEW_WIDTH,
             height=PREVIEW_HEIGHT,
-            bg=BG_ACCENT
+            fg_color=BG_PRIMARY,
+            corner_radius=6
         )
-        self.compressed_preview_frame.pack(anchor=tk.CENTER, expand=True)
+        self.compressed_preview_frame.pack(anchor="center", expand=True, fill="both", padx=PADDING_NORMAL, pady=(0, PADDING_NORMAL))
         self.compressed_preview_frame.pack_propagate(False)
-        self.compressed_preview_frame.grid_propagate(False)
         
-        # Compressed preview placeholder
-        self.compressed_label = tk.Label(
+        self.compressed_label = ctk.CTkLabel(
             self.compressed_preview_frame,
             text="[ COMPRESSED PREVIEW ]",
-            font=FONT_NORMAL,
-            fg=TEXT_SECONDARY,
-            bg=BG_ACCENT,
-            relief=tk.SUNKEN,
-            borderwidth=1,
-            justify=tk.CENTER
+            font=ctk.CTkFont(family=FONT_NORMAL[0], size=FONT_NORMAL[1]),
+            text_color=TEXT_SECONDARY
         )
-        self.compressed_label.pack(fill=tk.BOTH, expand=True)
+        self.compressed_label.pack(fill="both", expand=True)
         
-    
     def display_images(self, original_path, compressed_path):
-        """
-        Display original and compressed images when available.
-        """
+        """Display original and compressed images when available."""
         self.display_original(original_path)
         self.display_compressed(compressed_path)
 
@@ -110,40 +120,36 @@ class PreviewComponent(ttk.LabelFrame):
 
     def _render_original(self):
         """Render original image while preserving aspect ratio."""
-        photo = self._build_contained_photo(
-            self.original_image_path
-        )
-        if photo is None:
-            self.original_photo = None
-            self.original_label.config(
-                image="",
+        ctk_img = self._build_contained_ctk_image(self.original_image_path)
+        if ctk_img is None:
+            self.original_ctk_image = None
+            self.original_label.configure(
+                image=None,
                 text="[ ORIGINAL PREVIEW FAILED ]",
-                fg=TEXT_SECONDARY
+                text_color=TEXT_SECONDARY
             )
             return
 
-        self.original_photo = photo
-        self.original_label.config(image=self.original_photo, text="")
+        self.original_ctk_image = ctk_img
+        self.original_label.configure(image=self.original_ctk_image, text="")
 
     def _render_compressed(self):
         """Render compressed image while preserving aspect ratio."""
-        photo = self._build_contained_photo(
-            self.compressed_image_path
-        )
-        if photo is None:
-            self.compressed_photo = None
-            self.compressed_label.config(
-                image="",
+        ctk_img = self._build_contained_ctk_image(self.compressed_image_path)
+        if ctk_img is None:
+            self.compressed_ctk_image = None
+            self.compressed_label.configure(
+                image=None,
                 text="[ COMPRESSED PREVIEW ]",
-                fg=TEXT_SECONDARY
+                text_color=TEXT_SECONDARY
             )
             return
 
-        self.compressed_photo = photo
-        self.compressed_label.config(image=self.compressed_photo, text="")
+        self.compressed_ctk_image = ctk_img
+        self.compressed_label.configure(image=self.compressed_ctk_image, text="")
 
-    def _build_contained_photo(self, image_path):
-        """Build a centered, contained PhotoImage from the source file."""
+    def _build_contained_ctk_image(self, image_path):
+        """Build a centered, contained CTKImage from the source file."""
         if not image_path:
             return None
 
@@ -153,28 +159,24 @@ class PreviewComponent(ttk.LabelFrame):
         except OSError:
             return None
 
-        image = ImageOps.contain(
+        # Aspect ratio fitting
+        contained = ImageOps.contain(
             image,
             (PREVIEW_WIDTH, PREVIEW_HEIGHT),
             Image.Resampling.LANCZOS
         )
 
-        preview_canvas = Image.new("RGBA", (PREVIEW_WIDTH, PREVIEW_HEIGHT), BG_ACCENT)
-        offset_x = (PREVIEW_WIDTH - image.width) // 2
-        offset_y = (PREVIEW_HEIGHT - image.height) // 2
-
-        if image.mode == "RGBA":
-            preview_canvas.paste(image, (offset_x, offset_y), image)
-        else:
-            preview_canvas.paste(image, (offset_x, offset_y))
-
-        return ImageTk.PhotoImage(preview_canvas)
+        return ctk.CTkImage(
+            light_image=contained,
+            dark_image=contained,
+            size=(contained.width, contained.height)
+        )
 
     def clear(self):
         """Clear preview placeholders."""
         self.original_image_path = None
-        self.original_photo = None
+        self.original_ctk_image = None
         self.compressed_image_path = None
-        self.compressed_photo = None
-        self.original_label.config(image="", text="[ ORIGINAL PREVIEW ]")
-        self.compressed_label.config(image="", text="[ COMPRESSED PREVIEW ]")
+        self.compressed_ctk_image = None
+        self.original_label.configure(image=None, text="[ ORIGINAL PREVIEW ]")
+        self.compressed_label.configure(image=None, text="[ COMPRESSED PREVIEW ]")

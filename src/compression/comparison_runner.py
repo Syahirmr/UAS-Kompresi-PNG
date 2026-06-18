@@ -116,6 +116,10 @@ def run_comparison(files, output_dir, progress_callback, cancel_check):
             algo_metrics.append(metric)
             all_metrics.append(metric)
 
+            # Send progress update with metric after compression finishes
+            pct_after = min(((steps_done + idx) / total_steps) * 100, 100)
+            progress_callback(pct_after, progress_text, metric)
+
         steps_done += len(files)
 
         if algo_metrics:
