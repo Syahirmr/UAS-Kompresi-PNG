@@ -9,7 +9,7 @@ from src.utils.config import (
     FONT_NORMAL, BG_ACCENT, BG_PRIMARY,
     TEXT_PRIMARY, TEXT_SECONDARY, PADDING_NORMAL,
     PADDING_SMALL, PREVIEW_WIDTH, PREVIEW_HEIGHT,
-    BUTTON_BG, BUTTON_HOVER
+    BUTTON_BG, BUTTON_HOVER, BORDER_RADIUS, CONTROL_RADIUS, BORDER_COLOR
 )
 
 
@@ -35,9 +35,9 @@ class PreviewComponent(ctk.CTkFrame):
         self.original_card = ctk.CTkFrame(
             self,
             fg_color=BG_ACCENT,
-            corner_radius=8,
+            corner_radius=BORDER_RADIUS,
             border_width=1,
-            border_color=("#dddddd", "#3f3f3f")
+            border_color=BORDER_COLOR
         )
         self.original_card.grid(row=0, column=0, padx=(0, PADDING_NORMAL), sticky="nsew")
         
@@ -55,7 +55,7 @@ class PreviewComponent(ctk.CTkFrame):
             width=PREVIEW_WIDTH,
             height=PREVIEW_HEIGHT,
             fg_color=BG_PRIMARY,
-            corner_radius=6
+            corner_radius=CONTROL_RADIUS
         )
         self.original_preview_frame.pack(anchor="center", expand=True, fill="both", padx=PADDING_NORMAL, pady=(0, PADDING_NORMAL))
         self.original_preview_frame.pack_propagate(False)
@@ -73,9 +73,9 @@ class PreviewComponent(ctk.CTkFrame):
         self.compressed_card = ctk.CTkFrame(
             self,
             fg_color=BG_ACCENT,
-            corner_radius=8,
+            corner_radius=BORDER_RADIUS,
             border_width=1,
-            border_color=("#dddddd", "#3f3f3f")
+            border_color=BORDER_COLOR
         )
         self.compressed_card.grid(row=0, column=1, padx=(PADDING_NORMAL, 0), sticky="nsew")
         
@@ -96,7 +96,8 @@ class PreviewComponent(ctk.CTkFrame):
             selected_color=BUTTON_BG,
             selected_hover_color=BUTTON_HOVER,
             text_color=TEXT_PRIMARY,
-            height=30
+            height=30,
+            corner_radius=CONTROL_RADIUS
         )
         self.algo_segment.set("Deflate Baseline")
         self.algo_segment.pack(anchor="w", padx=PADDING_NORMAL, pady=(0, 10))
@@ -106,7 +107,7 @@ class PreviewComponent(ctk.CTkFrame):
             width=PREVIEW_WIDTH,
             height=PREVIEW_HEIGHT,
             fg_color=BG_PRIMARY,
-            corner_radius=6
+            corner_radius=CONTROL_RADIUS
         )
         self.compressed_preview_frame.pack(anchor="center", expand=True, fill="both", padx=PADDING_NORMAL, pady=(0, PADDING_NORMAL))
         self.compressed_preview_frame.pack_propagate(False)

@@ -34,10 +34,7 @@ logs/*.log
 desktop.ini
 
 # Project specific
-outputs/deflate/
-outputs/zopfli/
-outputs/oxipng/
-outputs/reports/
+outputs/*
 dataset/photo/
 dataset/screenshot/
 dataset/illustration/

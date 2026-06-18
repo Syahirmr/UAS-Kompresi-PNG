@@ -7,7 +7,8 @@ import customtkinter as ctk
 from src.utils.config import (
     FONT_NORMAL, FONT_HEADING, BG_ACCENT,
     TEXT_PRIMARY, TEXT_SECONDARY, BUTTON_BG, BUTTON_FG, BUTTON_HOVER,
-    SUCCESS_COLOR, ERROR_COLOR, PADDING_NORMAL, PADDING_SMALL
+    SUCCESS_COLOR, ERROR_COLOR, PADDING_NORMAL, PADDING_SMALL,
+    BORDER_RADIUS, CONTROL_RADIUS, BORDER_COLOR
 )
 
 
@@ -19,9 +20,9 @@ class FolderPickerComponent(ctk.CTkFrame):
         super().__init__(
             parent, 
             fg_color=BG_ACCENT, 
-            corner_radius=8, 
+            corner_radius=BORDER_RADIUS, 
             border_width=1, 
-            border_color=("#dddddd", "#3f3f3f")
+            border_color=BORDER_COLOR
         )
         self.pack(fill="x", padx=PADDING_NORMAL, pady=PADDING_SMALL)
         
@@ -60,7 +61,7 @@ class FolderPickerComponent(ctk.CTkFrame):
             fg_color=BUTTON_BG,
             text_color=BUTTON_FG,
             hover_color=BUTTON_HOVER,
-            corner_radius=6,
+            corner_radius=CONTROL_RADIUS,
             height=36,
             width=140
         )
@@ -83,7 +84,7 @@ class FolderPickerComponent(ctk.CTkFrame):
             font=ctk.CTkFont(family=FONT_NORMAL[0], size=FONT_NORMAL[1], weight="bold"),
             text_color=TEXT_PRIMARY,
             fg_color=("#e5e5e5", "#3a3a3a"),
-            corner_radius=6,
+            corner_radius=CONTROL_RADIUS,
             padx=10,
             pady=4
         )

@@ -12,7 +12,7 @@ from PIL import Image, ImageOps, ImageTk
 from src.utils.config import (
     FONT_NORMAL, FONT_HEADING, FONT_TITLE, BG_ACCENT, BG_PRIMARY,
     TEXT_PRIMARY, TEXT_SECONDARY, BUTTON_BG, BUTTON_FG, BUTTON_HOVER,
-    PADDING_NORMAL, PADDING_SMALL
+    PADDING_NORMAL, PADDING_SMALL, BORDER_RADIUS, CONTROL_RADIUS, BORDER_COLOR
 )
 from src.export.exporter import compute_ranking_scores
 
@@ -33,7 +33,7 @@ class MetricsPanelComponent(ctk.CTkFrame):
             segmented_button_selected_hover_color=BUTTON_HOVER,
             segmented_button_unselected_hover_color=BUTTON_HOVER,
             text_color=TEXT_PRIMARY,
-            corner_radius=8
+            corner_radius=BORDER_RADIUS
         )
         self.notebook.pack(fill="both", expand=True, padx=0, pady=0)
 
@@ -216,9 +216,9 @@ class MetricsPanelComponent(ctk.CTkFrame):
             frame = ctk.CTkFrame(
                 self.algo_summary_frame,
                 fg_color=BG_PRIMARY,
-                corner_radius=8,
+                corner_radius=BORDER_RADIUS,
                 border_width=1,
-                border_color=("#dddddd", "#3f3f3f")
+                border_color=BORDER_COLOR
             )
             frame.pack(side="left", fill="both", expand=True, padx=5, pady=5)
             self.algo_frames[algo_key] = frame
@@ -247,9 +247,9 @@ class MetricsPanelComponent(ctk.CTkFrame):
         winner_container = ctk.CTkFrame(
             container,
             fg_color=BG_PRIMARY,
-            corner_radius=8,
+            corner_radius=BORDER_RADIUS,
             border_width=1,
-            border_color=("#dddddd", "#3f3f3f")
+            border_color=BORDER_COLOR
         )
         winner_container.pack(fill="x", pady=(0, 10))
 
@@ -346,7 +346,7 @@ class MetricsPanelComponent(ctk.CTkFrame):
             fg_color=BUTTON_BG,
             text_color=BUTTON_FG,
             hover_color=BUTTON_HOVER,
-            corner_radius=6,
+            corner_radius=CONTROL_RADIUS,
             height=36,
             command=self._toggle_chart_view
         )
@@ -359,7 +359,7 @@ class MetricsPanelComponent(ctk.CTkFrame):
             font=ctk.CTkFont(family=FONT_NORMAL[0], size=FONT_NORMAL[1]),
             text_color=TEXT_SECONDARY,
             fg_color=BG_PRIMARY,
-            corner_radius=8,
+            corner_radius=BORDER_RADIUS,
             height=400
         )
         self.chart_canvas.pack(fill="both", expand=True, padx=PADDING_NORMAL, pady=PADDING_NORMAL)

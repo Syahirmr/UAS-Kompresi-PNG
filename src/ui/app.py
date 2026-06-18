@@ -3,6 +3,7 @@ Main GUI Application
 PNG Compression Comparison System
 """
 
+import os
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import threading
@@ -117,26 +118,14 @@ class CompressionApp(ctk.CTk):
         # 3. Control Panel
         self.control_panel = ControlPanelComponent(self.content_frame)
 
-        # 4. Main Content Frame (split into left and right)
-        main_content = ctk.CTkFrame(self.content_frame, fg_color="transparent")
-        main_content.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        # 4. File Selector (Toolbar)
+        self.file_selector = FileSelectorComponent(self.content_frame)
 
-        # Left side - Preview & Metrics (stacked)
-        left_frame = ctk.CTkFrame(main_content, fg_color="transparent")
-        left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
+        # 5. Preview Component (Side-by-Side Cards)
+        self.preview = PreviewComponent(self.content_frame)
 
-        # Preview
-        self.preview = PreviewComponent(left_frame)
-
-        # Metrics table
-        self.metrics = MetricsPanelComponent(left_frame)
-
-        # Right side - File Selector
-        right_frame = ctk.CTkFrame(main_content, fg_color="transparent")
-        right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=False, padx=(5, 0))
-
-        # File Selector
-        self.file_selector = FileSelectorComponent(right_frame)
+        # 6. Metrics Panel
+        self.metrics = MetricsPanelComponent(self.content_frame)
 
     def _bind_events(self):
         """Bind GUI events for dataset loading and file navigation."""
@@ -372,6 +361,14 @@ class CompressionApp(ctk.CTk):
                 f"Comparison selesai! Best: {wr_label} | Fastest: {ws_label} | Balanced: {wb_label}"
             )
 
+        # Sync segmented button in preview with current self.selected_algorithm
+        mapping = {
+            "deflate": "Deflate Baseline",
+            "zopfli": "Zopfli",
+            "oxipng": "OxiPNG"
+        }
+        self.preview.set_selected_algorithm_label(mapping.get(self.selected_algorithm, "Deflate Baseline"))
+
         self.control_panel.set_progress(100)
         self.after_idle(self._update_preview_current_file)
 
@@ -382,17 +379,26 @@ class CompressionApp(ctk.CTk):
         Stores outputs as {resolved_input_path: {algorithm: output_path}}
         so each algorithm's output can be viewed independently.
         """
+        self.logger.info("register_comparison_outputs", f"Registering comparison outputs for {len(per_algorithm)} algorithms")
         for algo_key, algo_data in per_algorithm.items():
-            for result in algo_data.get("results", []):
+            results = algo_data.get("results", [])
+            self.logger.info("register_comparison_outputs", f"Algo {algo_key}: {len(results)} results")
+            for result in results:
                 if not result.get("success"):
                     continue
                 input_path = result.get("input_path")
-                output_path = Path(result.get("output_path", ""))
-                if input_path and output_path.is_file():
-                    resolved = str(Path(input_path).resolve())
+                output_path_raw = result.get("output_path", "")
+                if not input_path or not output_path_raw:
+                    continue
+                output_path = Path(output_path_raw).resolve()
+                if output_path.is_file():
+                    resolved = os.path.normcase(os.path.abspath(input_path))
                     if resolved not in self.compressed_outputs:
                         self.compressed_outputs[resolved] = {}
                     self.compressed_outputs[resolved][algo_key] = output_path
+                    self.logger.info("register_comparison_outputs", f"Registered: {resolved} -> {algo_key} -> {output_path}")
+                else:
+                    self.logger.warn("register_comparison_outputs", f"Output file does not exist: {output_path}")
 
     def _export_comparison_results(self, per_algorithm, winners):
         """Export comparison CSV and generate charts automatically."""
@@ -640,8 +646,10 @@ class CompressionApp(ctk.CTk):
         After comparison: returns the output of the selected algorithm,
         falling back to the best-reduction algorithm's output.
         """
-        resolved = str(Path(original_path).resolve())
+        resolved = os.path.normcase(os.path.abspath(original_path))
         outputs = self.compressed_outputs.get(resolved)
+
+        self.logger.info("get_compressed_output_path", f"Requesting path for {resolved}. Selected algo: {self.selected_algorithm}. Available outputs: {list(outputs.keys()) if outputs else 'None'}")
 
         if not outputs:
             return None
@@ -649,13 +657,17 @@ class CompressionApp(ctk.CTk):
         # outputs is a dict: {algorithm_key: Path}
         # Try the currently selected algorithm first
         if self.selected_algorithm in outputs:
-            path = outputs[self.selected_algorithm]
+            path = Path(outputs[self.selected_algorithm]).resolve()
             if path.is_file():
+                self.logger.info("get_compressed_output_path", f"Found selected algorithm output: {path}")
                 return path
+            else:
+                self.logger.warn("get_compressed_output_path", f"Selected algorithm file not found: {path}")
 
         # Fall back to the best (smallest) file
         best_path = None
-        for algo, path in outputs.items():
+        for algo, path_obj in outputs.items():
+            path = Path(path_obj).resolve()
             if path.is_file():
                 if best_path is None:
                     best_path = path
@@ -665,21 +677,28 @@ class CompressionApp(ctk.CTk):
                             best_path = path
                     except OSError:
                         pass
+        self.logger.info("get_compressed_output_path", f"Fallback/Best output path: {best_path}")
         return best_path
 
     def _register_compressed_outputs(self, results, algorithm):
         """Store output paths produced by the latest batch run."""
+        self.logger.info("register_compressed_outputs", f"Registering batch outputs for {algorithm}")
         for result in results:
             if not result.get("success"):
                 continue
 
             input_path = result.get("input_path")
-            output_path = Path(result.get("output_path", ""))
-            if input_path and output_path.is_file():
-                resolved = str(Path(input_path).resolve())
-                if resolved not in self.compressed_outputs:
-                    self.compressed_outputs[resolved] = {}
-                self.compressed_outputs[resolved][algorithm] = output_path
+            output_path_raw = result.get("output_path", "")
+            if input_path and output_path_raw:
+                output_path = Path(output_path_raw).resolve()
+                if output_path.is_file():
+                    resolved = os.path.normcase(os.path.abspath(input_path))
+                    if resolved not in self.compressed_outputs:
+                        self.compressed_outputs[resolved] = {}
+                    self.compressed_outputs[resolved][algorithm] = output_path
+                    self.logger.info("register_compressed_outputs", f"Registered: {resolved} -> {algorithm} -> {output_path}")
+                else:
+                    self.logger.warn("register_compressed_outputs", f"Batch output file does not exist: {output_path}")
 
     # ------------------------------------------------------------------
     # Public accessors

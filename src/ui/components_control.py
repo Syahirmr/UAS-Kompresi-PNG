@@ -7,7 +7,8 @@ import customtkinter as ctk
 from src.utils.config import (
     FONT_NORMAL, FONT_HEADING, FONT_SMALL, BG_ACCENT,
     TEXT_PRIMARY, TEXT_SECONDARY, BUTTON_BG, BUTTON_FG, BUTTON_HOVER,
-    PROGRESS_COLOR, PADDING_NORMAL, PADDING_SMALL
+    PROGRESS_COLOR, PADDING_NORMAL, PADDING_SMALL,
+    BORDER_RADIUS, CONTROL_RADIUS, BORDER_COLOR
 )
 
 ALGORITHM_OPTIONS = [
@@ -25,9 +26,9 @@ class ControlPanelComponent(ctk.CTkFrame):
         super().__init__(
             parent, 
             fg_color=BG_ACCENT, 
-            corner_radius=8, 
+            corner_radius=BORDER_RADIUS, 
             border_width=1, 
-            border_color=("#dddddd", "#3f3f3f")
+            border_color=BORDER_COLOR
         )
         self.pack(fill="x", padx=PADDING_NORMAL, pady=PADDING_SMALL)
         
@@ -62,7 +63,8 @@ class ControlPanelComponent(ctk.CTkFrame):
             dropdown_fg_color=BG_ACCENT,
             dropdown_text_color=TEXT_PRIMARY,
             dropdown_hover_color=BUTTON_HOVER,
-            text_color=BUTTON_FG
+            text_color=BUTTON_FG,
+            corner_radius=CONTROL_RADIUS
         )
         self.algorithm_combo.pack(side="left")
 
@@ -94,7 +96,7 @@ class ControlPanelComponent(ctk.CTkFrame):
             fg_color=("#0078d4", "#1f77b4"),
             text_color=BUTTON_FG,
             hover_color=BUTTON_HOVER,
-            corner_radius=6,
+            corner_radius=CONTROL_RADIUS,
             height=40,
             width=180
         )
@@ -108,7 +110,7 @@ class ControlPanelComponent(ctk.CTkFrame):
             fg_color=("#e81123", "#d11a2a"),
             text_color=BUTTON_FG,
             hover_color=("#ff3b30", "#e63946"),
-            corner_radius=6,
+            corner_radius=CONTROL_RADIUS,
             height=40,
             width=140,
             state="disabled"
@@ -123,7 +125,7 @@ class ControlPanelComponent(ctk.CTkFrame):
             fg_color=("#6b3fa0", "#8e44ad"),
             text_color=BUTTON_FG,
             hover_color=("#7b4fa8", "#9b59b6"),
-            corner_radius=6,
+            corner_radius=CONTROL_RADIUS,
             height=40,
             width=180
         )
@@ -132,12 +134,12 @@ class ControlPanelComponent(ctk.CTkFrame):
         # Export button
         self.export_btn = ctk.CTkButton(
             button_frame,
-            text="📊 Export Results",
+            text="📤 Export Results",
             font=ctk.CTkFont(family=FONT_HEADING[0], size=FONT_HEADING[1], weight="bold"),
             fg_color=("#107c10", "#2ea44f"),
             text_color=BUTTON_FG,
             hover_color=("#1f9d1f", "#34d058"),
-            corner_radius=6,
+            corner_radius=CONTROL_RADIUS,
             height=40,
             width=180,
             state="disabled"
