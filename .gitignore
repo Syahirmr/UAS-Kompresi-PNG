@@ -39,9 +39,6 @@ dataset/photo/
 dataset/screenshot/
 dataset/illustration/
 dataset/transparency/
-tools/*.exe
-tools/*.bin
-tools/oxipng
 
 # Keep folder structure but ignore contents
 !outputs/.gitkeep
