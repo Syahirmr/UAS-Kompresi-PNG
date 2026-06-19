@@ -87,6 +87,14 @@ class TestScanPngFolder(unittest.TestCase):
         result = scan_png_folder(self.tmpdir)
         self.assertEqual(result, [])
 
+    # ---------- cancellation ----------
+
+    def test_scan_cancellation(self):
+        self._make_png("a.png")
+        self._make_png("b.png")
+        result = scan_png_folder(self.tmpdir, cancel_check=lambda: True)
+        self.assertIsNone(result)
+
 
 class TestValidateDataset(unittest.TestCase):
     """Tests for validate_dataset()"""

@@ -61,6 +61,7 @@ class CompressionApp(ctk.CTk):
         # State tracking
         self.is_compressing = False
         self.is_comparing = False
+        self.is_scanning = False
         self.files_list = []
         self.file_labels = []
         self.current_file_index = 0
@@ -166,7 +167,10 @@ class CompressionApp(ctk.CTk):
         self._update_preview_current_file()
 
     def _browse_dataset_folder(self):
-        """Open a folder dialog and load PNG dataset files."""
+        """Open a folder dialog and load PNG dataset files in a background thread."""
+        if self.is_compressing or self.is_comparing or self.is_scanning:
+            return
+
         folder_path = filedialog.askdirectory(
             title="Pilih Folder Dataset PNG",
             mustexist=True
@@ -181,16 +185,67 @@ class CompressionApp(ctk.CTk):
             messagebox.showerror("Folder Invalid", message)
             return
 
-        self.control_panel.set_status("Memuat dataset...")
-        self.folder_picker.set_selected_folder(folder)
-        self.files_list = scan_png_folder(folder)
+        self.is_scanning = True
+        self.cancel_requested = False
 
+        self.control_panel.set_status("Memindai folder dataset...")
+        self.folder_picker.set_selected_folder(folder)
+        self.folder_picker.set_file_count(0)
+        self.folder_picker.set_validation_status("Memindai...", valid=False)
+
+        # Disable navigation & action buttons, enable Cancel
+        self.control_panel.disable_compress()
+        self.control_panel.disable_comparison()
+        self.control_panel.disable_algorithm_selector()
+        self.control_panel.enable_cancel()
+        self.control_panel.disable_export()
+        self.folder_picker.browse_btn.configure(state="disabled")
+
+        self.worker_thread = threading.Thread(
+            target=self._run_folder_scan_background,
+            args=(folder,),
+            daemon=True
+        )
+        self.worker_thread.start()
+
+    def _run_folder_scan_background(self, folder):
+        """Run folder scan in the background."""
+        try:
+            files_list = scan_png_folder(folder, cancel_check=lambda: self.cancel_requested)
+        except Exception as exc:
+            self.logger.log_exception("FolderScanError", str(exc))
+            files_list = []
+        self.after(0, self._finish_folder_scan, folder, files_list)
+
+    def _finish_folder_scan(self, folder, files_list):
+        """Complete the folder scan on the main thread."""
+        self.is_scanning = False
+        self.worker_thread = None
+
+        self.control_panel.disable_cancel()
+        self.folder_picker.browse_btn.configure(state="normal")
+        self.control_panel.enable_algorithm_selector()
+
+        if self.cancel_requested or files_list is None:
+            self.cancel_requested = False
+            self.files_list = []
+            self.file_labels = []
+            self.folder_picker.set_file_count(0)
+            self.folder_picker.set_validation_status("Pemindaian dibatalkan oleh pengguna.", valid=False)
+            self.file_selector.populate_files([])
+            self.preview.clear()
+            self.preview.hide_algorithm_selector()
+            self.control_panel.set_status("Pemindaian folder dibatalkan.")
+            return
+
+        self.files_list = files_list
         valid, message = validate_dataset(self.files_list)
         self.logger.dataset_loaded(str(folder), len(self.files_list), valid)
         self.compressed_outputs = {}
         self.metrics_data = []
         self.metrics_summary = summarize_metrics([])
-        self.control_panel.disable_export()
+        self.comparison_results = None
+        
         self.file_labels = [
             str(file_path.relative_to(folder)) for file_path in self.files_list
         ]
@@ -202,10 +257,14 @@ class CompressionApp(ctk.CTk):
         if self.files_list:
             self.current_file_index = 0
             self._update_preview_current_file()
+            self.control_panel.enable_compress()
+            self.control_panel.enable_comparison()
         else:
             self.current_file_index = 0
             self.preview.clear()
         self.preview.hide_algorithm_selector()
+
+        self.control_panel.set_status("Dataset berhasil dimuat." if valid else message)
 
         if not valid:
             messagebox.showwarning("Dataset Belum Valid", message)
@@ -223,7 +282,7 @@ class CompressionApp(ctk.CTk):
             return
 
         # BUG-3 fix: check both compressing and comparing
-        if self.is_compressing or self.is_comparing:
+        if self.is_compressing or self.is_comparing or self.is_scanning:
             return
 
         # Show Zopfli warning for comparison too
@@ -317,6 +376,7 @@ class CompressionApp(ctk.CTk):
         self.control_panel.enable_algorithm_selector()
         self.control_panel.disable_cancel()
         self.folder_picker.browse_btn.configure(state="normal")
+        self._enable_export_if_ready()
 
         winners = comparison_result["winners"]
         per_algorithm = comparison_result["per_algorithm"]
@@ -434,7 +494,7 @@ class CompressionApp(ctk.CTk):
             return
 
         # BUG-3 fix: check both compressing and comparing
-        if self.is_compressing or self.is_comparing:
+        if self.is_compressing or self.is_comparing or self.is_scanning:
             return
 
         self.is_compressing = True
@@ -444,6 +504,7 @@ class CompressionApp(ctk.CTk):
         self.metrics_data = []
         self.metrics_summary = summarize_metrics([])
         self.compressed_outputs = {}
+        self.comparison_results = None
         self.metrics.reset()
         self.preview.hide_algorithm_selector()
         algorithm = self.control_panel.get_algorithm()
@@ -516,13 +577,16 @@ class CompressionApp(ctk.CTk):
             )
 
     def _cancel_compression(self):
-        """Request graceful cancellation after the active file finishes."""
-        if not self.is_compressing and not self.is_comparing:
+        """Request graceful cancellation after the active file finishes or scan stops."""
+        if not self.is_compressing and not self.is_comparing and not self.is_scanning:
             return
 
         self.cancel_requested = True
         self.control_panel.disable_cancel()
-        self.control_panel.set_status("Cancel diminta. File aktif akan diselesaikan dulu...")
+        if self.is_scanning:
+            self.control_panel.set_status("Membatalkan pemindaian folder...")
+        else:
+            self.control_panel.set_status("Cancel diminta. File aktif akan diselesaikan dulu...")
 
     def _finish_compression(self, summary):
         """Restore GUI state after batch compression finishes."""
@@ -585,12 +649,33 @@ class CompressionApp(ctk.CTk):
             ))
             return
 
+        exported_paths = []
         try:
+            # Export raw metrics details
             output_path = export_metrics_csv(
                 metrics=self.metrics_data,
                 summary=self.metrics_summary,
                 output_dir=Path("outputs") / "reports",
             )
+            exported_paths.append(output_path.name)
+            self.logger.export_success(str(output_path))
+
+            # If comparison results are available, also export comparison summary report
+            if self.comparison_results:
+                per_algorithm = self.comparison_results.get("per_algorithm", {})
+                winners = self.comparison_results.get("winners", {})
+                comp_csv_path = export_comparison_csv(
+                    per_algorithm=per_algorithm,
+                    winners=winners,
+                    output_dir=Path("outputs") / "reports"
+                )
+                exported_paths.append(comp_csv_path.name)
+                self.logger.export_success(str(comp_csv_path))
+
+                # Regenerate charts to ensure they match
+                charts_dir = Path("outputs") / "charts"
+                generate_reduction_chart(per_algorithm, charts_dir)
+                generate_time_chart(per_algorithm, charts_dir)
         except (OSError, KeyError) as exc:
             self.logger.export_failed(str(exc))
             self.logger.log_exception(type(exc).__name__, str(exc))
@@ -599,9 +684,9 @@ class CompressionApp(ctk.CTk):
             ))
             return
 
-        self.logger.export_success(str(output_path))
-        self.after(0, lambda path=output_path: self.control_panel.set_status(
-            f"Export berhasil: {path}"
+        paths_str = ", ".join(exported_paths)
+        self.after(0, lambda: self.control_panel.set_status(
+            f"Export berhasil: {paths_str}"
         ))
 
     # ------------------------------------------------------------------
