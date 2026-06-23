@@ -2,7 +2,7 @@
 
 **Studi Komparasi Tiga Algoritma Kompresi PNG Menggunakan Python Berbasis GUI**
 
-Aplikasi desktop berbasis Python untuk membandingkan efektivitas tiga algoritma kompresi PNG secara batch. Dirancang untuk eksperimen akademik dengan dataset terkontrol, aplikasi ini menyediakan GUI lengkap dengan preview side-by-side, metrics real-time, dan export CSV.
+Aplikasi desktop berbasis Python untuk membandingkan efektivitas tiga algoritma kompresi PNG secara batch. Menyediakan GUI lengkap dengan side-by-side preview, metrics real-time, comparison dashboard, ranking, dan export CSV + charts otomatis.
 
 ---
 
@@ -14,38 +14,57 @@ Aplikasi desktop berbasis Python untuk membandingkan efektivitas tiga algoritma 
 - **Validasi** — Minimum 10 file PNG, abaikan file hidden/corrupted
 - **File count** — Tampilkan jumlah dan daftar file
 
-### 2. Batch Compression
-- **Sequential processing** — Kompresi semua file satu per satu
-- **3 algoritma** — Deflate Baseline, Zopfli Deflate, OxiPNG
+### 2. Compression Algorithms
+| Algorithm | Method | Timeout | Karakteristik |
+|-----------|--------|---------|---------------|
+| **Deflate Baseline** | zlib (stdlib) | Unlimited | Baseline tercepat |
+| **Zopfli Deflate** | zopfli Python package (v0.4.3) | 60s per file | Ukuran terkecil, iterasi 15 |
+| **OxiPNG** | oxipng.exe (subprocess) | 120s per file | Kompromi terbaik |
+
+### 3. Single Algorithm Compression
+- **Sequential processing** — Kompresi semua file dengan satu algoritma
 - **Progress bar** — Update real-time 0–100%
 - **Cancel** — Batalkan proses; file aktif diselesaikan dulu
 - **Partial completion** — Hasil parsial tetap disimpan
+- **Export** — CSV report via tombol Export
 
-### 3. Preview
+### 4. Comparison Dashboard (M10)
+- **📊 Run Comparison** — Jalankan ketiga algoritma sekaligus
+- **Progress per-algoritma** — [Algorithm 2/3] Zopfli | File 4/10 | 40%
+- **ETA estimasi** — Rolling window average, format menit:detik
+- **Winner display** — Best Compression, Fastest, Balanced Winner (score 0–100)
+- **Auto export** — CSV report + charts otomatis setelah comparison selesai
+
+### 5. Preview
 - **Side-by-side** — Original vs Compressed
-- **Aspect ratio** — Fit with LANCZOS resampling
+- **Aspect ratio** — ImageOps.contain dengan LANCZOS resampling
 - **Navigasi** — Prev/Next/File List dropdown
-- **Transparency support** — RGBA image handling
+- **Transparency support** — RGBA alpha compositing
+- **Per-algorithm** — Preview berubah sesuai algoritma yang dipilih (BUG-2 fix)
 
-### 4. Metrics
+### 6. Metrics & Ranking
 - **Table view** — File, Algorithm, Original Size, Compressed Size, Reduction %, Time (ms), Resolution, Status
-- **Summary bar** — Completed, Failed, Cancelled, Avg Reduction, Avg Time
+- **Comparison Summary tab** — Winner cards (Best Compression, Fastest, Balanced)
+- **Ranking tab** — Score 0–100 (50% reduction + 50% speed, normalized)
+- **Charts tab** — Reduction % bar chart + Time (ms) bar chart
 - **Real-time update** — Metrics muncul per-file selama kompresi
 
-### 5. Export
-- **CSV report** — `outputs/reports/report_YYYYMMDD_HHMMSS.csv`
-- **Summary section** — completed, failed, cancelled, avg_reduction, avg_time_ms
-- **No-overwrite** — Timestamp + counter otomatis
-- **Manual export** — Tombol Export aktif setelah batch selesai
+### 7. Export
+- **Metrics CSV** — `outputs/reports/report_YYYYMMDD_HHMMSS_mmm.csv`
+- **Comparison CSV** — `outputs/reports/comparison_report_YYYYMMDD_HHMMSS_mmm.csv` (dengan score + winners)
+- **Charts** — `outputs/charts/reduction_chart_TIMESTAMP.png` dan `time_chart_TIMESTAMP.png`
+- **No-overwrite** — Timestamp millisecond precision
+- **Auto export** — CSV + charts otomatis setelah comparison
 
-### 6. Logging
+### 8. Logging
 - **App log** — `logs/app.log` — semua event aplikasi
 - **Session log** — `logs/session_YYYYMMDD_HHMMSS.log` — ringkasan per batch
 - **Graceful failure** — Logging error tidak crash aplikasi
 
-### 7. Error Handling
+### 9. Error Handling
 - File corrupted → skip, tandai FAILED, lanjut
 - File non-PNG → abaikan
+- Timeout per-algoritma → tandai FAILED, lanjut algoritma berikutnya
 - Export gagal → tampilkan error di status bar
 - Kompresi gagal → catat metrics dengan status FAILED
 
@@ -67,10 +86,10 @@ CompressionApp (Main Window — tk.Tk)
 │   └── File Counter + Validation Status
 │
 ├── ControlPanelComponent
-│   ├── Start Compression Button
-│   ├── Cancel Button
-│   ├── Export Results Button
-│   ├── Progress Bar (0-100%)
+│   ├── [▶ Start Compression] [⏹ Cancel] [📊 Run Comparison] [📊 Export]
+│   ├── Algorithm Selector (Deflate | Zopfli | OxiPNG)
+│   ├── Zopfli Warning Label
+│   ├── Progress Bar (0-100%) + ETA
 │   └── Status Label
 │
 ├── PreviewComponent (Side-by-side)
@@ -79,15 +98,14 @@ CompressionApp (Main Window — tk.Tk)
 │
 ├── FileSelectorComponent
 │   ├── File List (Combobox)
-│   ├── Previous / Next Buttons
+│   ├── [◀ Previous] [Next ▶]
 │   └── Position Counter
 │
 └── MetricsPanelComponent
-    └── Treeview Table
-        ├── File, Algorithm, Original Size
-        ├── Compressed Size, Reduction %
-        ├── Time (ms), Resolution, Status
-        └── Summary Bar
+    ├── Metrics Tab — Treeview Table (File, Algorithm, Size, Reduction, Time, Status)
+    ├── Comparison Summary Tab — Winner Cards
+    ├── Ranking Tab — Score Table
+    └── Charts Tab — Reduction / Time toggle
 ```
 
 ### Module Structure
@@ -99,25 +117,26 @@ src/
 │   ├── app.py                       # Main GUI (CompressionApp)
 │   ├── components_header.py         # Header section
 │   ├── components_folder_picker.py  # Folder selection
-│   ├── components_control.py        # Buttons & progress
-│   ├── components_preview.py        # Image preview
+│   ├── components_control.py        # Buttons, algorithm selector, progress
+│   ├── components_preview.py        # Image preview (side-by-side)
 │   ├── components_file_selector.py  # File navigation
-│   └── components_metrics.py        # Metrics table
+│   └── components_metrics.py        # Metrics table + comparison dashboard
 ├── compression/
-│   ├── compressor.py                # Compression dispatcher
+│   ├── compressor.py                # Compression dispatcher + timeouts
+│   ├── comparison_runner.py         # 3-algorithm comparison engine
 │   └── algorithms/
-│       ├── deflate_runner.py        # Deflate (zlib)
-│       ├── zopfli_runner.py         # Zopfli (placeholder)
-│       └── oxipng_runner.py         # OxiPNG (placeholder)
+│       ├── deflate_runner.py        # Deflate (zlib IDAT re-compression)
+│       ├── zopfli_runner.py         # Zopfli (zopfli.zlib package)
+│       └── oxipng_runner.py         # OxiPNG (subprocess, tools/ auto-discover)
 ├── processing/
 │   └── batch_processor.py           # Batch compression engine
 ├── analysis/
-│   └── analyzer.py                  # Metrics calculation
+│   └── analyzer.py                  # Metrics calculation & summarization
 ├── export/
-│   └── exporter.py                  # CSV export
+│   └── exporter.py                  # CSV export + chart generation + ranking
 └── utils/
-    ├── config.py                    # GUI constants
-    ├── dataset_loader.py            # PNG folder scanner
+    ├── config.py                    # GUI constants + algorithm timeouts
+    ├── dataset_loader.py            # PNG folder scanner & validator
     └── logger.py                    # Structured logging
 ```
 
@@ -126,20 +145,25 @@ src/
 ```
 Folder Dipilih
     ↓
-Dataset Loader → scan_png_folder()
+Dataset Loader → scan_png_folder() → validate_dataset()
     ↓
 File List → FileSelector + Preview
     ↓
-Start Compression
+── [Single Algorithm] ──                 ── [Comparison] ──
+    ↓                                       ↓
+Start Compression                       Run Comparison
+    ↓                                       ↓
+Batch Processor → loop per file         Comparison Runner
+    ↓                                       ↓
+Compressor → Deflate/Zopfli/OxiPNG      Algo 1 → Algo 2 → Algo 3
+    ↓                                       ↓
+Analyzer → build_metric()               Per-algorithm results merged
+    ↓                                       ↓
+Progress Callback → UI update           Winners + Scores computed
+    ↓                                       ↓
+Selesai → Metrics + Preview             Charts + CSV auto-export
     ↓
-Batch Processor → loop per file
-    ├─→ Compressor → Deflate/Zopfli/OxiPNG
-    ├─→ Analyzer → build_metric()
-    └─→ Progress Callback → UI update
-    ↓
-Selesai → Metrics + Summary + Preview
-    ↓
-Export → CSV report (report_YYYYMMDD_HHMMSS.csv)
+Export → CSV report (manual button)
 ```
 
 ### Technology Stack
@@ -149,6 +173,9 @@ Export → CSV report (report_YYYYMMDD_HHMMSS.csv)
 | **GUI** | Tkinter (ttk.Themed) |
 | **Image Processing** | Pillow (PIL) |
 | **Deflate** | zlib (stdlib) |
+| **Zopfli** | zopfli Python package |
+| **OxiPNG** | subprocess (external binary) |
+| **Charts** | matplotlib (Agg backend) |
 | **CSV** | csv (stdlib) |
 | **Logging** | Custom file-based |
 | **Threading** | threading (stdlib) |
@@ -156,18 +183,18 @@ Export → CSV report (report_YYYYMMDD_HHMMSS.csv)
 
 ---
 
-## How To Run
+## Setup
 
 ### Prerequisites
 
-- **Python 3.11+**
+- **Python 3.11+** (tested on Python 3.14)
 - **pip** (Python package manager)
 - Virtual environment (disarankan)
 
-### Quick Start
+### Install
 
 ```bash
-# 1. Clone project
+# 1. Clone / navigate to project
 cd uas-kompresi-png
 
 # 2. Create virtual environment
@@ -181,24 +208,24 @@ source .venv/bin/activate
 
 # 4. Install dependencies
 pip install -r requirements.txt
-
-# 5. Run aplikasi
-python src/main.py
 ```
 
 ### Dependencies
-
-See [requirements.txt](requirements.txt) for full list.
 
 | Package | Version | Fungsi |
 |---------|---------|--------|
 | Pillow | 12.1.1 | Image processing & preview |
 | pandas | 3.0.1 | Data analysis & CSV |
-| matplotlib | 3.10.8 | Visualization & charts |
+| matplotlib | 3.10.8 | Bar chart generation |
 | numpy | 2.4.2 | Numerical computations |
 | zopfli | 0.4.3 | Zopfli compression |
 
-> **Catatan:** Eksekusi langsung hanya untuk **Deflate Baseline** (zlib). Zopfli dan OxiPNG masih berupa placeholder yang membutuhkan binary eksternal di `tools/`.
+### External Tools
+
+**OxiPNG** membutuhkan binary eksternal:
+1. Download `oxipng.exe` dari [oxipng releases](https://github.com/shssoichiro/oxipng/releases)
+2. Letakkan di `tools/oxipng/oxipng.exe`
+   ATAU pastikan tersedia di PATH
 
 ### Directory Structure
 
@@ -206,23 +233,62 @@ See [requirements.txt](requirements.txt) for full list.
 uas-kompresi-png/
 ├── docs/                  # Dokumentasi proyek
 ├── src/                   # Source code
-├── dataset/               # Input PNG files
-├── outputs/               # Hasil kompresi
-│   ├── deflate/
-│   ├── zopfli/
-│   ├── oxipng/
-│   └── reports/
-├── tools/                 # External binaries (opsional)
-├── tests/                 # Unit tests
+├── dataset/
+│   └── data1/             # Dataset pengujian (10 PNG, 4 kategori)
+├── outputs/
+│   ├── deflate/           # Hasil Deflate
+│   ├── zopfli/            # Hasil Zopfli
+│   ├── oxipng/            # Hasil OxiPNG
+│   ├── comparison/        # Hasil per-algoritma dari comparison
+│   │   ├── deflate/
+│   │   ├── zopfli/
+│   │   └── oxipng/
+│   ├── charts/            # Chart PNG (timestamped)
+│   └── reports/           # CSV reports
+├── tools/
+│   └── oxipng/            # oxipng.exe (manual download)
+├── tests/                 # 128 unit tests
 ├── logs/                  # Application logs
-├── assets/                # Static assets
 ├── requirements.txt
 └── README.md
 ```
 
 ---
 
-## Dataset Rules
+## Run
+
+```bash
+# Pastikan virtual environment aktif
+.venv\Scripts\activate
+
+# Jalankan aplikasi
+python -m src.main
+```
+
+### Run Tests
+
+```bash
+python -m unittest discover -s tests -v
+# Expected: 128 tests, 0 failures
+```
+
+### Run Comparison (via GUI)
+
+1. Buka aplikasi: `python -m src.main`
+2. Klik **Browse Folder** → pilih `dataset/data1`
+3. Klik **📊 Run Comparison**
+4. Tunggu proses (Deflate → Zopfli → OxiPNG)
+5. Lihat hasil di tab **Comparison Summary**, **Ranking**, **Charts**
+6. CSV + charts auto-export ke `outputs/reports/` dan `outputs/charts/`
+
+### Export Report
+
+- **Manual:** Setelah single-algorithm compression, klik **📊 Export Results**
+- **Otomatis:** Setiap comparison menghasilkan `comparison_report_TIMESTAMP.csv` + charts
+
+---
+
+## Dataset
 
 ### Minimum Requirements
 
@@ -233,22 +299,26 @@ uas-kompresi-png/
 
 ### Recommended Composition
 
-Agar hasil eksperimen tidak bias, disarankan:
+| Kategori | Jumlah | File di dataset/data1 |
+|----------|--------|----------------------|
+| Photo | 3 file | foto1.png, foto2.png, foto3.png |
+| Screenshot | 3 file | Screenshot 1.png, Screenshot 2.png, Screenshot 3.png |
+| Illustration | 2 file | ilustrasi1.png, ilustrasi2.png |
+| Transparency | 2 file | transparan1.png, transparan2.png |
 
-| Kategori | Jumlah | Contoh |
-|----------|--------|--------|
-| Photo | 3 file | Foto pemandangan, portrait |
-| Screenshot | 3 file | Screenshot UI, web, aplikasi |
-| Illustration | 2 file | Ilustrasi digital, vector-to-PNG |
-| Transparency | 2 file | Gambar dengan alpha channel |
+Total: **10 file PNG** dengan variasi karakteristik untuk menghindari bias eksperimen.
 
-Total: **10+ file PNG** dengan variasi karakteristik.
+---
 
-### Validation Rules
+## Troubleshooting
 
-- Aplikasi akan menampilkan **warning** jika < 10 file
-- Tombol **Compress** tidak aktif sampai dataset valid
-- File tidak diubah, di-resize, atau di-crop selama kompresi
+| Problem | Solution |
+|---------|----------|
+| `No module named 'compression._common'` | Hapus `sys.path.insert(0, ...)` dari `src/main.py` dan `src/ui/app.py` (Python 3.14 stdlib conflict — sudah di-fix) |
+| OxiPNG tidak ditemukan | Letakkan `oxipng.exe` di `tools/oxipng/` |
+| Zopfli timeout | Batch besar: Zopfli punya timeout 60s per file. Gunakan dataset lebih kecil atau naikkan `ZOPFLI_TIMEOUT` di `src/utils/config.py` |
+| GUI tidak muncul | Pastikan display server aktif (Linux: `export DISPLAY=:0`) |
+| matplotlib error | Pastikan `matplotlib` terinstal: `pip install matplotlib` |
 
 ---
 
@@ -264,162 +334,45 @@ Total: **10+ file PNG** dengan variasi karakteristik.
 python -m unittest discover -s tests -v
 ```
 
-### Test Coverage
+### Test Coverage (128 tests)
 
-| Test File | Coverage | Test Count |
-|-----------|----------|------------|
-| `test_dataset_loader.py` | scan_png_folder (happy path, empty, hidden, corrupted, non-PNG, non-existent), validate_dataset | 13 |
-| `test_compressor.py` | compress_file (success, non-existent, non-PNG, unknown algorithm, aliases, output dir creation) | 9 |
-| `test_batch_processor.py` | process_dataset (3 files, empty, cancel immediate, cancel partial, single file, progress callbacks) | 7 |
-| `test_metrics.py` | build_metric (success, failed, zero input, unreadable, labels), summarize_metrics (all success, with failed, cancelled, empty, all failed) | 13 |
-| `test_exporter.py` | export_metrics_csv (creates CSV, header, data, summary, no-overwrite, multiple, empty, output dir), _build_report_path, _format_metric_row, _bytes_to_kb | 13 |
-| `test_logger.py` | All 8 events no-crash, session log, permission error skip, invalid path | 17 |
-
-**Total: 73 unit tests — all passing.**
-
-### Test Scenarios Covered
-
-- ✅ Happy path — kompresi normal
-- ✅ Invalid input — file corrupted, non-PNG, non-existent
-- ✅ Empty dataset — folder kosong
-- ✅ Cancel flow — cancel immediate, cancel setelah 1 file
-- ✅ Export output — CSV format, no-overwrite
-- ✅ Metrics calculation — reduction %, average, cancelled flag
-- ✅ Logging no-crash — permission error, invalid path
-- ✅ Edge cases — zero size, all failed, alias algorithms
+| Test File | Coverage |
+|-----------|----------|
+| `test_dataset_loader.py` | scan_png_folder (happy path, empty, hidden, corrupted, non-PNG, non-existent), validate_dataset |
+| `test_compressor.py` | compress_file (success, non-existent, non-PNG, unknown algorithm, aliases, output dir creation) |
+| `test_batch_processor.py` | process_dataset (3 files, empty, cancel immediate, cancel partial, single file, progress callbacks) |
+| `test_metrics.py` | build_metric (success, failed, zero input, unreadable, labels), summarize_metrics (all success, with failed, cancelled, empty, all failed) |
+| `test_exporter.py` | export_metrics_csv (creates CSV, header, data, summary, no-overwrite, multiple, empty, output dir, counter fallback), _build_report_path, _format_metric_row, _bytes_to_kb |
+| `test_logger.py` | All events no-crash, session log, permission error skip, invalid path |
+| `test_oxipng_runner.py` | executable discovery, subprocess, error cases, timeout |
+| `test_zopfli_runner.py` | executable discovery, real compression, error cases, timeout |
+| `test_comparison.py` | run all algorithms, partial fail, cancel, chart generation, export, winners, ranking scores |
+| `test_real_oxipng.py` | Acceptance test with real oxipng binary |
+| `test_real_tools.py` | Cross-algorithm real binary acceptance |
 
 ---
 
-## Output Example
-
-### CSV Report (`outputs/reports/report_20260616_143022.csv`)
+## Output Structure
 
 ```
-file,algorithm,original_size_kb,compressed_size_kb,reduction_percent,time_ms,resolution,status
-photo1.png,Deflate Baseline,1024.5000,512.2500,50.0000,150.5000,1920x1080,SUCCESS
-screenshot1.png,Deflate Baseline,2048.0000,1024.0000,50.0000,200.7500,2560x1440,SUCCESS
-
-,completed,failed,cancelled,avg_reduction,avg_time_ms
-summary
-completed,2,,,,
-failed,0,,,,
-cancelled,False,,,,
-avg_reduction,50.0000,,,,
-avg_time_ms,175.6250,,,,
+outputs/
+├── deflate/                    # Single Deflate batch
+│   └── *.png
+├── zopfli/                     # Single Zopfli batch
+│   └── *.png
+├── oxipng/                     # Single OxiPNG batch
+│   └── *.png
+├── comparison/                 # Comparison output (3 algoritma)
+│   ├── deflate/*.png
+│   ├── zopfli/*.png
+│   └── oxipng/*.png
+├── charts/                     # Chart PNG (timestamped)
+│   ├── reduction_chart_20260617_163122_483.png
+│   └── time_chart_20260617_163122_483.png
+└── reports/                    # CSV reports (timestamped)
+    ├── report_20260617_163122_483.csv
+    └── comparison_report_20260617_163122_483.csv
 ```
-
-### Session Log (`logs/session_20260616_143022.log`)
-
-```
-dataset=C:\Users\user\dataset-png
-algorithm=deflate
-completed=10
-failed=0
-avg_reduction=45.2500
-avg_time_ms=180.3000
-```
-
-### App Log (`logs/app.log`)
-
-```
-2026-06-16 14:30:00 | INFO | app_start | PNG Compression Comparison System started
-2026-06-16 14:30:15 | INFO | dataset_loaded | path=C:\Users\user\dataset-png count=10 valid=yes
-2026-06-16 14:30:20 | INFO | compression_started | algorithm=deflate total_files=10
-2026-06-16 14:32:45 | INFO | compression_finished | completed=10 failed=0 avg_reduction=45.25% avg_time=180.30ms
-2026-06-16 14:32:50 | INFO | export_success | path=outputs\reports\report_20260616_143022.csv
-```
-
-### GUI Layout
-
-```
-┌──────────────────────────────────────────────────────────────┐
-│ PNG COMPRESSION COMPARISON SYSTEM                           │
-│ Studi Komparasi Tiga Algoritma Kompresi PNG...              │
-├──────────────────────────────────────────────────────────────┤
-│ DATASET SELECTION                                           │
-│ Selected Folder: C:\dataset\  [ Browse Folder ]   Files: 10 │
-│ Dataset valid: ditemukan 10 PNG.                            │
-├──────────────────────────────────────────────────────────────┤
-│ COMPRESSION CONTROL                                         │
-│ [▶ Start] [⏹ Cancel] [📊 Export]  ████████░░░  80%        │
-│ Status: Selesai 8/10: photo3.png                            │
-├─────────────────────────┬────────────────────────────────────┤
-│ PREVIEW RESULTS          │ FILE NAVIGATION                  │
-│ ┌──────┐ ┌──────┐       │ [photo1.png        ▼]            │
-│ │ORIG  │ │COMP  │       │ [◀ Previous] [Next ▶]           │
-│ │      │ │      │       │ Position: 3/10                   │
-│ └──────┘ └──────┘       │                                    │
-│                          │                                    │
-│ COMPRESSION METRICS      │                                    │
-│ ┌──────┬────┬────┬───┬──┤                                    │
-│ │File  │Algo│Orig│Red│% │                                    │
-│ ├──────┼────┼────┼───┼──┤                                    │
-│ │p1.png│Def │... │...│% │                                    │
-│ │ ...  │    │    │   │  │                                    │
-│ └──────┴────┴────┴───┴──┘                                    │
-│ Completed: 8 | Failed: 0 | Cancelled: No | Avg Red: 45.25%   │
-└──────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Known Limitations
-
-### 1. Algorithm Placeholders
-- **Zopfli** dan **OxiPNG** masih berupa **placeholder runner** (me-raise `RuntimeError` dengan pesan executable tidak ditemukan).
-- Hanya **Deflate Baseline** (zlib) yang berfungsi penuh saat ini.
-- Untuk mengaktifkan Zopfli/OxiPNG, binary eksternal harus diletakkan di `tools/` atau tersedia di PATH.
-
-### 2. GUI Threading
-- Worker thread menggunakan `daemon=True`. Jika aplikasi ditutup saat kompresi berjalan, thread akan dipotong paksa dan file yang sedang diproses mungkin tidak selesai.
-- Belum ada mekanisme `join(timeout)` pada `_on_close`.
-
-### 3. Platform-Specific
-- **Windows:** `PermissionError` testing untuk logging tidak optimal (chmod terbatas).
-- **Path:** Menggunakan `pathlib.Path` yang cross-platform, namun beberapa test menggunakan absolute path Unix-style.
-
-### 4. Grafik Belum Implementasi
-- `size_comparison.png` dan `time_comparison.png` (matplotlib) **belum diimplementasi**.
-- Export saat ini hanya CSV.
-- Grafik ditandai sebagai `(future)` di TASKS.md.
-
-### 5. Single Algorithm per Run
-- Batch compression hanya menjalankan **satu algoritma** per run (default: `deflate`).
-- Belum ada fitur "run all algorithms sequentially" dalam satu klik.
-- User harus mengganti algoritma dan menjalankan ulang secara manual.
-
-### 6. No GUI Component Tests
-- Unit tests hanya mencakup **logic layer** (compression, analysis, export, logging).
-- GUI components (button state, event binding, rendering) tidak memiliki automated test.
-- Testing GUI membutuhkan framework seperti `pytest-qt` atau manual verification.
-
-### 7. Dataset
-- Folder `dataset/` belum terisi (hanya berisi `.gitkeep`).
-- User harus menyediakan file PNG sendiri untuk testing.
-- Minimal 10 file PNG diperlukan untuk validasi.
-
-### 8. Dependency
-- `zopfli` (Python package) dan `oxipng` (binary) tidak terinstal secara default.
-- `requirements.txt` menyertakan `zopfli==0.4.3` (Python wrapper), tapi binary eksternal `oxipng` harus diinstal manual.
-
----
-
-## Status
-
-**MILESTONE 0–9: ✅ COMPLETED**
-
-| Milestone | Status |
-|-----------|--------|
-| M0 — Project Setup | ✅ |
-| M1 — GUI Foundation | ✅ |
-| M2 — Dataset Loader | ✅ |
-| M3 — Compression Engine | ✅ |
-| M4 — Batch Processor | ✅ |
-| M5 — Metrics Engine | ✅ |
-| M6 — Result Viewer | ✅ |
-| M7 — Export System | ✅ |
-| M8 — Logging & Error Handling | ✅ |
-| M9 — Testing & Polish | ✅ |
 
 ---
 
@@ -430,9 +383,28 @@ avg_time_ms=180.3000
 | [docs/PRD.md](docs/PRD.md) | Product Requirement Document |
 | [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) | Technical Requirements |
 | [docs/EXPERIMENT.md](docs/EXPERIMENT.md) | Experiment Plan |
-| [docs/TASKS.md](docs/TASKS.md) | Task Breakdown & Milestones |
+| [docs/TASKS.md](docs/TASKS.md) | Task Breakdown & Milestones (M0–M11) |
 | [docs/GUI_ARCHITECTURE.md](docs/GUI_ARCHITECTURE.md) | GUI Architecture |
 | [docs/REPORT_OUTLINE.md](docs/REPORT_OUTLINE.md) | Laporan UAS Outline |
+
+---
+
+## Milestone Status
+
+| Milestone | Status | Description |
+|-----------|--------|-------------|
+| M0 — Project Setup | ✅ | Structure, venv, dependencies |
+| M1 — GUI Foundation | ✅ | Tkinter layout, all components |
+| M2 — Dataset Loader | ✅ | PNG scanner, validator |
+| M3 — Compression Engine | ✅ | Deflate, Zopfli, OxiPNG runners |
+| M4 — Batch Processor | ✅ | Sequential processing, cancel |
+| M5 — Metrics Engine | ✅ | Reduction %, time, resolution |
+| M6 — Result Viewer | ✅ | Preview, navigation, algorithm switcher |
+| M7 — Export System | ✅ | CSV, charts, no-overwrite |
+| M8 — Logging & Error | ✅ | Structured logging, error handling |
+| M9 — Testing & Polish | ✅ | 128 unit tests, GUI polish |
+| M10 — Comparison Dashboard | ✅ | Run all, winners, auto-export |
+| M11 — Comparison UX | ✅ | Timeout, ETA, ranking, balanced winner |
 
 ---
 

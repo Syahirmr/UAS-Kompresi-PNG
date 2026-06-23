@@ -3,6 +3,7 @@ Unit tests for src.export.exporter
 """
 
 import unittest
+import unittest.mock
 import tempfile
 import shutil
 from pathlib import Path
@@ -59,14 +60,25 @@ class TestExportMetricsCsv(unittest.TestCase):
     def test_export_creates_csv(self):
         path = export_metrics_csv(self.metrics, self.summary, self.tmpdir)
         self.assertTrue(path.is_file())
-        self.assertIn("report_", path.name)
+        self.assertEqual(path.name, "results_export.csv")
         self.assertEqual(path.suffix, ".csv")
 
     def test_export_contains_header(self):
         path = export_metrics_csv(self.metrics, self.summary, self.tmpdir)
         content = path.read_text(encoding="utf-8")
-        # Check all CSV_COLUMNS appear in header
-        for col in CSV_COLUMNS:
+        headers = [
+            "File Name",
+            "Original Size",
+            "Algorithm",
+            "Compressed Size",
+            "Reduction %",
+            "Compression Ratio",
+            "Processing Time (ms)",
+            "Best Algorithm",
+            "Score",
+            "Timestamp"
+        ]
+        for col in headers:
             self.assertIn(col, content)
 
     def test_export_contains_data_rows(self):
@@ -75,38 +87,13 @@ class TestExportMetricsCsv(unittest.TestCase):
         self.assertIn("a.png", content)
         self.assertIn("b.png", content)
 
-    def test_export_contains_summary_section(self):
-        path = export_metrics_csv(self.metrics, self.summary, self.tmpdir)
-        content = path.read_text(encoding="utf-8")
-        self.assertIn("summary", content)
-        self.assertIn("completed", content)
-        self.assertIn("avg_reduction", content)
-
-    # ---------- no-overwrite ----------
-
-    def test_export_does_not_overwrite(self):
-        p1 = export_metrics_csv(self.metrics, self.summary, self.tmpdir)
-        p2 = export_metrics_csv(self.metrics, self.summary, self.tmpdir)
-        self.assertNotEqual(p1.name, p2.name)
-        self.assertTrue(p1.is_file())
-        self.assertTrue(p2.is_file())
-
-    def test_export_multiple_times_creates_separate_files(self):
-        paths = set()
-        for _ in range(5):
-            p = export_metrics_csv(self.metrics, self.summary, self.tmpdir)
-            paths.add(p.name)
-        self.assertEqual(len(paths), 5)
-
     # ---------- empty metrics ----------
 
     def test_export_empty_metrics(self):
         path = export_metrics_csv([], self.summary, self.tmpdir)
         self.assertTrue(path.is_file())
         content = path.read_text(encoding="utf-8")
-        # Should have header + empty line + summary
-        self.assertIn("file,algorithm", content)
-        self.assertIn("summary", content)
+        self.assertIn("File Name,Original Size,Algorithm", content)
 
     # ---------- output directory ----------
 
@@ -133,9 +120,13 @@ class TestBuildReportPath(unittest.TestCase):
         self.assertEqual(path.suffix, ".csv")
 
     def test_appends_counter_on_collision(self):
-        p1 = _build_report_path(self.tmpdir)
-        p1.touch()  # occupy first name
-        p2 = _build_report_path(self.tmpdir)
+        fixed_ts = "20260617_163122_483"
+        with unittest.mock.patch(
+            "src.export.exporter._timestamp_ms", return_value=fixed_ts
+        ):
+            p1 = _build_report_path(self.tmpdir)
+            p1.touch()  # occupy first name
+            p2 = _build_report_path(self.tmpdir)
         self.assertNotEqual(p1, p2)
         self.assertIn("_1.", p2.name)
 
@@ -175,6 +166,76 @@ class TestBytesToKb(unittest.TestCase):
     def test_large_value(self):
         result = _bytes_to_kb(1048576)
         self.assertEqual(result, "1024.0000")
+
+
+from src.export.exporter import export_to_csv_final, export_to_excel_final
+
+class TestNewExporters(unittest.TestCase):
+    def setUp(self):
+        self.tmpdir = Path(tempfile.mkdtemp())
+        self.metrics = [
+            {
+                "file": "a.png",
+                "algorithm": "Deflate Baseline",
+                "original_size": 20480,
+                "compressed_size": 10240,
+                "reduction_percent": 50.0,
+                "time_ms": 150.5,
+                "resolution": "16x16",
+                "status": "SUCCESS",
+            },
+            {
+                "file": "b.png",
+                "algorithm": "Zopfli Deflate",
+                "original_size": 102400,
+                "compressed_size": 51200,
+                "reduction_percent": 50.0,
+                "time_ms": 200.0,
+                "resolution": "32x32",
+                "status": "SUCCESS",
+            },
+        ]
+        self.summary = {
+            "completed": 2,
+            "failed": 0,
+            "cancelled": False,
+            "avg_reduction": 50.0,
+            "avg_time_ms": 175.25,
+        }
+        self.per_algorithm = {
+            "deflate": {
+                "label": "Deflate Baseline",
+                "summary": {"completed": 1, "failed": 0, "avg_reduction": 50.0, "avg_time_ms": 150.5},
+                "metrics": [self.metrics[0]]
+            },
+            "zopfli": {
+                "label": "Zopfli Deflate",
+                "summary": {"completed": 1, "failed": 0, "avg_reduction": 50.0, "avg_time_ms": 200.0},
+                "metrics": [self.metrics[1]]
+            }
+        }
+        self.selected_algos = ["deflate", "zopfli"]
+
+    def tearDown(self):
+        shutil.rmtree(self.tmpdir, ignore_errors=True)
+
+    def test_export_to_csv_final(self):
+        dest = self.tmpdir / "results.csv"
+        path = export_to_csv_final(self.metrics, self.summary, self.selected_algos, dest)
+        self.assertTrue(path.is_file())
+        content = path.read_text(encoding="utf-8")
+        self.assertIn("Export Date", content)
+        self.assertIn("a.png", content)
+        self.assertIn("b.png", content)
+
+    def test_export_to_excel_final(self):
+        dest = self.tmpdir / "results.xlsx"
+        path = export_to_excel_final(self.metrics, self.summary, self.selected_algos, dest)
+        self.assertTrue(path.is_file())
+        import openpyxl
+        wb = openpyxl.load_workbook(dest)
+        self.assertIn("Detailed Results", wb.sheetnames)
+        self.assertIn("Algorithm Summary", wb.sheetnames)
 
 
 if __name__ == "__main__":

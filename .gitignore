@@ -34,17 +34,11 @@ logs/*.log
 desktop.ini
 
 # Project specific
-outputs/deflate/
-outputs/zopfli/
-outputs/oxipng/
-outputs/reports/
+outputs/*
 dataset/photo/
 dataset/screenshot/
 dataset/illustration/
 dataset/transparency/
-tools/*.exe
-tools/*.bin
-tools/oxipng
 
 # Keep folder structure but ignore contents
 !outputs/.gitkeep

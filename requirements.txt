@@ -13,3 +13,5 @@ numpy==2.4.2
 
 # Compression Algorithm
 zopfli==0.4.3
+openpyxl==3.1.5
+
