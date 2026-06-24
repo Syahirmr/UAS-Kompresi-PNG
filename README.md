@@ -6,138 +6,144 @@ Aplikasi desktop berbasis Python untuk membandingkan efektivitas tiga algoritma 
 
 ---
 
-## Latar Belakang & Landasan Teori
+## Demo (3 Menit)
 
-Tujuan utama dari proyek ini adalah menemukan algoritma kompresi *lossless* terbaik untuk gambar berformat PNG dengan menyeimbangkan dua variabel utama: **Rasio Kompresi** (ukuran file sekecil mungkin) dan **Kecepatan Waktu Eksekusi** (waktu pemrosesan secepat mungkin).
-
-### 1. Kenapa Memilih 3 Algoritma Ini?
-
-Kami menguji tiga algoritma yang masing-masing mewakili pendekatan teknis yang berbeda di industri kompresi:
-
-*   **Deflate Baseline (zlib):**
-    Merupakan algoritma bawaan (*standard library*) dari Python yang digunakan hampir di seluruh sistem komputasi di dunia.
-    *   **Kelebihan:** Sangat cepat karena sudah dioptimasi di level C, cocok sebagai *baseline* (nilai rujukan awal).
-    *   **Kekurangan:** Rasio kompresi standar dan kurang maksimal jika dibandingkan dengan algoritma pencarian mendalam (*exhaustive*).
-
-*   **Zopfli (Google Zopfli):**
-    Algoritma buatan Google yang melakukan pencarian ruang kompresi secara mendalam (*exhaustive search*) hingga 15 iterasi untuk memadatkan data semaksimal mungkin dengan format Deflate standar.
-    *   **Kelebihan:** Menghasilkan ukuran file yang sangat kecil (3-8% lebih kecil dibanding zlib), sangat ideal untuk keperluan web (seperti CDN) di mana file dikompres sekali namun diunduh jutaan kali.
-    *   **Kekurangan:** Waktu pemrosesan (CPU time) sangat lambat, bahkan bisa 100x lebih lama dibanding zlib.
-
-*   **OxiPNG (Rust-based Optimizer):**
-    Algoritma kompresi ulang *lossless* yang ditulis dalam bahasa Rust, merupakan evolusi mutakhir dari OptiPNG. OxiPNG membuang meta-data yang tidak diperlukan dan menerapkan pencarian *heuristic* tingkat lanjut.
-    *   **Kelebihan:** Mampu berjalan secara *multithreaded*, sehingga dapat memproses *chunk* gambar secara paralel. Memberikan rasio kompresi yang hampir menyaingi Zopfli namun dengan waktu eksekusi yang jauh lebih cepat.
-    *   **Kekurangan:** Memerlukan *binary file* (`.exe`) eksternal tambahan.
-
-### 2. Keputusan Arsitektur UI: Kenapa CustomTkinter?
-
-Dalam pengembangan antarmuka (GUI), kami memilih menggunakan **Tkinter** yang dipadukan dengan **CustomTkinter** karena alasan teknis berikut:
-*   **Lightweight & Native:** Tidak seperti framework Electron (Node.js) atau Qt yang sangat berat dan memakan banyak RAM, Tkinter adalah pustaka GUI bawaan Python yang sangat ringan.
-*   **Estetika Modern:** Kombinasi `CustomTkinter` mengatasi kelemahan klasik Tkinter dengan menyediakan elemen UI modern (sudut melengkung, efek *hover*) serta transisi *Dark/Light Mode* layaknya aplikasi *native* modern tanpa mengorbankan performa.
-*   **Integrasi Multithreading:** Aplikasi ini merender antarmuka di *Main Thread*, sedangkan proses pemindaian folder (ratusan file) dan kompresi mesin dijalankan di *Background Worker Thread* terpisah. Hal ini memastikan UI tidak macet (*hang/freeze*) selama eksperimen berlangsung.
+Panduan cepat mendemonstrasikan aplikasi:
+1. **Load Dataset:** Klik tombol **Browse Folder** lalu pilih folder `dataset/data1`.
+2. **Run Comparison:** Klik tombol **📊 Run Comparison**. Pemindaian dan proses kompresi akan berjalan menggunakan *background thread* (UI tetap responsif).
+3. **Lihat Ranking:** Setelah selesai, buka tab **Comparison Summary** atau **Ranking** untuk melihat pemenang seimbang.
+4. **Lihat Chart:** Buka tab **Charts** untuk melihat visualisasi komparasi waktu dan reduksi antar algoritma.
+5. **Export CSV:** Hasil analisis telah tersimpan secara otomatis di dalam direktori `outputs/reports/`.
 
 ---
 
-## Sorotan Fitur (Features Overview)
+## Dataset Eksperimen
 
-### 1. Performa Pemindaian *Background* (Baru)
-Proses memuat dataset tidak lagi membuat UI macet berkat implementasi sistem *background thread* untuk proses pembacaan file. Pemindaian (*scanning*) yang panjang bisa di-*cancel* kapan saja oleh pengguna.
+Untuk menjaga keadilan dan objektivitas (*fairness*) komparasi algoritma, kami menggunakan 10 file sampel yang merepresentasikan keberagaman karakteristik PNG asli di dunia nyata. Semua sampel berada pada direktori `dataset/data1/`.
 
-### 2. Comparison Dashboard 📊
-Menjalankan ketiga algoritma (Deflate, Zopfli, OxiPNG) sekaligus secara berurutan. Di akhir proses, sistem otomatis menentukan pemenang berdasarkan 3 metrik:
-- **Best Compression:** Algoritma dengan pengurangan ukuran (*reduction*) terbesar.
-- **Fastest:** Algoritma dengan waktu tercepat.
-- **Balanced Winner:** Algoritma dengan skor terbaik (Kalkulasi 50% ukuran file + 50% kecepatan).
+| File Name | Tipe Gambar | Ukuran Asli | Alasan Pemilihan |
+| :--- | :--- | :--- | :--- |
+| `foto1.png` | Photo | 643 KB | Memiliki banyak variasi piksel (warna kompleks). |
+| `foto2.png` | Photo | 586 KB | Menguji kompresi pada gambar dengan tekstur natural. |
+| `foto3.png` | Photo | 304 KB | Foto resolusi menengah sebagai pembanding kecepatan. |
+| `ilustrasi1.png` | Illustration | 553 KB | Gambar vektor datar (warna solid yang seharusnya mudah dikompres). |
+| `ilustrasi2.png` | Illustration | 773 KB | Ilustrasi kompleks dengan banyak gradasi. |
+| `Screenshot 1.png` | Screenshot | 757 KB | Gambar layar UI, khas teks yang tajam. |
+| `Screenshot 2.png` | Screenshot | 1.2 MB | Screenshot beresolusi sangat tinggi / 4K. |
+| `Screenshot 3.png` | Screenshot | 494 KB | Screenshot biasa dengan jendela aplikasi. |
+| `transparan1.png` | Transparency | 1.2 MB | Menguji bagaimana algoritma menangani *alpha channel* (latar bolong). |
+| `transparan2.png` | Transparency | 1.3 MB | Gambar transparan dengan banyak tepi *anti-aliasing*. |
 
-### 3. Visualisasi & Eksport Data Otomatis
-Setiap kali *comparison* selesai dijalankan, data metrik diekspor secara otomatis agar tidak hilang.
-- **Laporan CSV:** Rekapitulasi detil (`comparison_report_YYYYMMDD.csv`).
-- **Diagram Grafik:** Aplikasi otomatis men- *generate* grafik batang perbandingan performa di direktori `outputs/charts/`.
+**Total:** 10 File | **Format:** `.png` | **Rentang:** 304 KB - 1.3 MB.
+
+---
+
+## Metodologi Eksperimen
+
+*Ranking* algoritma dan penghitungan performa dihitung berdasarkan metodologi berikut:
+
+### 1. Environment & Variabel Kontrol
+- **Hardware:** OS Windows, Arsitektur x86_64. *(Catatan: Karena eksperimen berjalan di hardware lokal pengguna, hasil waktu/Time dapat bervariasi bergantung pada spesifikasi CPU/RAM).*
+- **Software:** Python 3.11+, menggunakan *standard library* dan subprocess untuk *wrapper*.
+- **Timeout Policy:** 
+  - Zopfli: Batas maksimum 60 detik per file. Jika melebihi waktu ini, proses diputus dan gambar tidak dihitung (mencegah *infinite hang*).
+  - OxiPNG: Batas maksimum 120 detik per file.
+- **Iteration Run:** Setiap file dijalankan kompresi ulang *lossless* 1 kali per algoritma.
+
+### 2. Balanced Score (Formula Peringkat)
+Karena Deflate unggul di waktu namun lemah di reduksi ukuran, dan Zopfli sebaliknya, kami menciptakan **Balanced Score (0-100)**:
+
+$$ \text{Balanced Score} = (0.5 \times \text{Normalized Reduction}) + (0.5 \times \text{Normalized Speed}) $$
+
+- **Normalized Reduction:** Dicari menggunakan formula _Min-Max Scaling_ di mana penghematan ruang (Bytes) tertinggi mendapat skor 100.
+- **Normalized Speed:** Waktu tercepat (Miliseconds) yang terukur mendapat skor 100, terlama mendapat 0.
+
+---
+
+## Keterbatasan Eksperimen (Threats to Validity)
+
+Analisis akademik yang dilaporkan memiliki beberapa keterbatasan:
+1. **Hardware Dependency:** Metrik kecepatan (*Fastest*) sangat bergantung pada kapabilitas *multithreading* prosesor mesin host saat itu. OxiPNG menggunakan multi-core, sedangkan Zopfli dan Deflate *single-thread*. 
+2. **Timeout Bias:** Batasan waktu (*timeout*) 60 detik per file mungkin secara tidak adil mendiskualifikasi Zopfli pada *file* berukuran raksasa. 
+3. **Dataset Size:** Jumlah 10 sampel dirasa cukup untuk memberikan gambaran dasar, tetapi tidak serta-merta mewakili rata-rata statistik yang sah untuk klaim global.
+4. **OxiPNG External Binary:** Karena ditulis di Rust, ia dipanggil menggunakan metode `subprocess.Popen()`. Ada sedikit latensi *I/O startup* (~10ms) per panggilan file yang membebani metrik waktu OxiPNG dibandingkan modul *built-in* C milik Python.
+
+---
+
+## Latar Belakang & Landasan Teori
+
+### 1. Kenapa Memilih 3 Algoritma Ini?
+*   **Deflate Baseline (zlib):** Algoritma *standard library* Python yang dikompilasi di C. Cepat tapi standar. Sebagai *baseline* eksperimen.
+*   **Zopfli (Google):** Melakukan pencarian *exhaustive* format Deflate. Unggul dalam mengecilkan ukuran (*Best Compression*) tetapi lambat karena memakan siklus CPU secara repetitif.
+*   **OxiPNG (Rust):** Algoritma *optimizer* generasi baru yang mengeliminasi metadata (*chunk*) tak terpakai menggunakan iterasi *multithread*. Kompromi seimbang antara ukuran dan waktu.
+
+### 2. Kenapa CustomTkinter?
+Digunakan **Tkinter** bawaan dan di- *wrapper* dengan **CustomTkinter** agar:
+* Sangat ringan (berbeda dari Electron/Node.js).
+* Modern secara estetika (mendukung *Dark Mode*).
+* Mampu direkayasa untuk menggunakan arsitektur *Main UI Thread* + *Background Worker Thread* sehingga komputasi OxiPNG/Zopfli yang ekstrem tidak menyebabkan antarmuka aplikasi menjadi *hang* atau *Not Responding*.
 
 ---
 
 ## Visualisasi Fitur
 
-Berikut adalah gambaran hasil akhir (*output*) berupa diagram komparasi yang dihasilkan oleh aplikasi:
+Diagram ini ditarik dari hasil uji komparasi terbaru (`deliverables/screenshots/`):
 
 | Grafik Reduksi Ukuran File | Grafik Kecepatan Kompresi |
 |:---:|:---:|
-| ![Reduction Chart](outputs/charts/reduction_chart_20260618_171138_821.png) | ![Time Chart](outputs/charts/time_chart_20260618_171138_924.png) |
-*(Diagram yang dihasilkan secara otomatis usai proses uji coba untuk analisis laporan)*
+| ![Reduction Chart](deliverables/screenshots/reduction_chart_demo.png) | ![Time Chart](deliverables/screenshots/time_chart_demo.png) |
 
 ---
 
 ## Setup & Instalasi
 
-### Prasyarat
+### 1. Prasyarat
 - **Python 3.11+**
-- Virtual Environment (Opsional namun disarankan)
+- Virtual Environment (Opsional)
 
-### Cara Menginstal
-
+### 2. Cara Menginstal
 ```bash
-# 1. Clone & Navigasi
+# Clone & Navigasi
 cd uas-kompresi-png
 
-# 2. Buat & Aktifkan Virtual Environment
+# Buat & Aktifkan Virtual Environment
 python -m venv .venv
-.venv\Scripts\activate   # Untuk Windows
+.venv\Scripts\activate   # Windows
 
-# 3. Instal semua dependensi
+# Instal semua dependensi
 pip install -r requirements.txt
 ```
 
-### Eksternal Binary (OxiPNG)
-Aplikasi membutuhkan `oxipng.exe` yang diletakkan di direktori berikut:
-`tools/oxipng/oxipng.exe`
+### 3. Eksternal Binary (OxiPNG)
+Executable OxiPNG **sudah disediakan di repository** pada folder `tools/oxipng/oxipng.exe`. Anda tidak perlu mengunduh apa pun secara manual.
 
 ---
 
-## Struktur Proyek Utama
+## Troubleshooting & Solusi
+
+Jika penguji mendapati *error* selama menjalankan aplikasi:
+
+| Problem / Gejala | Kemungkinan Penyebab | Solusi (*Fix*) |
+|:---|:---|:---|
+| `ModuleNotFoundError: No module named 'zopfli'` | Virtual environment belum diaktivasi atau dependensi belum diinstal. | Jalankan `.venv\Scripts\activate` lalu `pip install -r requirements.txt`. |
+| OxiPNG tidak menghasilkan kompresi (*Error log*) | File `oxipng.exe` terhapus / terblokir *antivirus*. | Pastikan file ada di `tools/oxipng/oxipng.exe`. Cek *quarantine* antivirus. |
+| Komparasi Zopfli terasa "stuck" (lama sekali) | Sifat asli Zopfli *exhaustive search*. Terutama pada dataset transparan. | Jangan klik paksa. Biarkan berjalan, batas *timeout* Zopfli (60s per file) akan otomatis memutus proses. |
+| Grafik (*Chart*) Tidak Muncul | *Matplotlib GUI Backend* tidak disupport OS pengguna. | Aplikasi menyimpan versi *stateless* di folder `outputs/charts/`. Buka file tersebut secara manual. |
+| Aplikasi tidak kompatibel (Error `compression._common`) | Konflik modul internal dengan Python versi 3.14 (Beta). | Issue ini sudah di- *patch*, pastikan kode Anda sejajar dengan *branch main* saat ini. |
+
+---
+
+## Struktur Proyek
 
 ```text
 uas-kompresi-png/
-├── src/
-│   ├── ui/app.py                    # Main GUI & CustomTkinter UI
-│   ├── compression/algorithms/      # Modul zlib, zopfli, dan oxipng runner
-│   ├── analysis/analyzer.py         # Penghitung matriks skor
-│   ├── export/exporter.py           # Ekspor ke CSV, Excel, dan pembuat Chart
-│   └── utils/dataset_loader.py      # Background scanner
-├── dataset/                         # Folder sample input PNG
-├── outputs/
-│   ├── comparison/                  # Hasil kompresi per algoritma
-│   ├── charts/                      # Output visual diagram
-│   └── reports/                     # Output hasil eksperimen CSV/Excel
-├── tests/                           # +128 Unit Testing
-└── tools/oxipng/                    # Lokasi binary OxiPNG
-```
-
----
-
-## Cara Menjalankan Aplikasi
-
-```bash
-# Pastikan virtual env aktif
-.venv\Scripts\activate
-
-# Mulai GUI
-python -m src.main
-```
-
-**Panduan Pengujian:**
-1. Klik **Browse Folder** dan pilih direktori dataset (misal: `dataset/data1`).
-2. Proses pemindaian berjalan di *background*, tunggu hingga jumlah file terdeteksi.
-3. Klik tombol biru **Run Comparison** untuk menjalankan eksperimen pada ketiga algoritma.
-4. Cek visual komparasi di layar, dan lihat hasil laporan lengkapnya di tab **Comparison Summary** atau di folder `outputs/reports`.
-
----
-
-## Testing & Kualitas Kode
-
-Aplikasi ini dilindungi oleh lebih dari 128 *Unit Tests* yang mencakup modul-modul kritis:
-```bash
-# Untuk menjalankan test
-python -m unittest discover -s tests -v
+├── src/                             # Source code aplikasi (UI, Compressor, Analisis)
+├── dataset/                         # Kumpulan gambar sampel
+├── outputs/                         # (Auto-generated) Hasil ekspor kompresi, CSV, Chart
+├── deliverables/                    # Dokumen & aset statis pengerjaan presentasi
+│   └── screenshots/                 # Gambar demo chart
+├── tests/                           # Modul pengujian unit (128 cases)
+└── tools/oxipng/                    # Binary statis (executable OxiPNG)
 ```
 
 ---

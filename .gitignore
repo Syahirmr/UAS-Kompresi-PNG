@@ -23,6 +23,8 @@ Thumbs.db
 
 # Logs
 logs/*.log
+*.log
+app.log
 
 # Temporary files
 *.tmp
