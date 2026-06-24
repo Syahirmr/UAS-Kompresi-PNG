@@ -144,6 +144,7 @@ class CompressionApp(ctk.CTk):
         # State tracking
         self.is_compressing = False
         self.is_comparing = False
+        self.is_scanning = False
         self.files_list = []
         self.file_labels = []
         self.current_file_index = 0
@@ -266,10 +267,56 @@ class CompressionApp(ctk.CTk):
             messagebox.showerror("Folder Invalid", message)
             return
 
-        self.control_panel.set_status("Memuat dataset...")
+        self.control_panel.set_status("Memindai folder...")
         self.folder_picker.set_selected_folder(folder)
-        self.files_list = scan_png_folder(folder)
+        
+        # Set up for background scan
+        self.is_scanning = True
+        self.cancel_requested = False
+        self.control_panel.disable_compress()
+        self.control_panel.disable_comparison()
+        self.control_panel.disable_algorithm_selector()
+        self.control_panel.enable_cancel()
+        self.folder_picker.browse_btn.configure(state="disabled")
 
+        self.worker_thread = threading.Thread(
+            target=self._run_folder_scan_background,
+            args=(folder,),
+            daemon=True
+        )
+        self.worker_thread.start()
+
+    def _run_folder_scan_background(self, folder):
+        """Run folder scan in the background."""
+        try:
+            files_list = scan_png_folder(folder, cancel_check=lambda: self.cancel_requested)
+        except Exception as exc:
+            self.logger.log_exception("FolderScanError", str(exc))
+            files_list = []
+        self.after(0, self._finish_folder_scan, folder, files_list)
+
+    def _finish_folder_scan(self, folder, files_list):
+        """Complete the folder scan on the main thread."""
+        self.is_scanning = False
+        self.worker_thread = None
+
+        self.control_panel.disable_cancel()
+        self.folder_picker.browse_btn.configure(state="normal")
+        self.control_panel.enable_algorithm_selector()
+
+        if self.cancel_requested or files_list is None:
+            self.cancel_requested = False
+            self.files_list = []
+            self.file_labels = []
+            self.folder_picker.set_file_count(0)
+            self.folder_picker.set_validation_status("Pemindaian dibatalkan oleh pengguna.", valid=False)
+            self.file_selector.populate_files([])
+            self.preview.clear()
+            self.preview.hide_algorithm_selector()
+            self.control_panel.set_status("Pemindaian folder dibatalkan.")
+            return
+
+        self.files_list = files_list
         valid, message = validate_dataset(self.files_list)
         self.logger.dataset_loaded(str(folder), len(self.files_list), valid)
         self.compressed_outputs = {}
@@ -278,6 +325,8 @@ class CompressionApp(ctk.CTk):
         self.metrics_summary = summarize_metrics([])
         self.control_panel.disable_export()
         self.metrics.export_btn.configure(state="disabled")
+        self.comparison_results = None
+
         self.file_labels = [
             str(file_path.relative_to(folder)) for file_path in self.files_list
         ]
@@ -323,9 +372,13 @@ class CompressionApp(ctk.CTk):
         if self.files_list:
             self.current_file_index = 0
             self._update_preview_current_file()
+            self.control_panel.enable_compress()
+            self.control_panel.enable_comparison()
         else:
             self.current_file_index = 0
             self.preview.clear()
+
+        self.control_panel.set_status("Dataset berhasil dimuat." if valid else message)
 
         if not valid:
             messagebox.showwarning("Dataset Belum Valid", message)
@@ -348,7 +401,7 @@ class CompressionApp(ctk.CTk):
             return
 
         # BUG-3 fix: check both compressing and comparing
-        if self.is_compressing or self.is_comparing:
+        if self.is_compressing or self.is_comparing or self.is_scanning:
             return
 
         # Show Zopfli warning if Zopfli is selected
@@ -664,7 +717,7 @@ class CompressionApp(ctk.CTk):
             return
 
         # BUG-3 fix: check both compressing and comparing
-        if self.is_compressing or self.is_comparing:
+        if self.is_compressing or self.is_comparing or self.is_scanning:
             return
 
         self.is_compressing = True
@@ -748,13 +801,16 @@ class CompressionApp(ctk.CTk):
             )
 
     def _cancel_compression(self):
-        """Request graceful cancellation after the active file finishes."""
-        if not self.is_compressing and not self.is_comparing:
+        """Request graceful cancellation after the active file finishes or scan stops."""
+        if not self.is_compressing and not self.is_comparing and not self.is_scanning:
             return
 
         self.cancel_requested = True
         self.control_panel.disable_cancel()
-        self.control_panel.set_status("Cancel diminta. File aktif akan diselesaikan dulu...")
+        if self.is_scanning:
+            self.control_panel.set_status("Membatalkan pemindaian folder...")
+        else:
+            self.control_panel.set_status("Cancel diminta. File aktif akan diselesaikan dulu...")
 
     def _finish_compression(self, summary):
         """Restore GUI state after batch compression finishes."""

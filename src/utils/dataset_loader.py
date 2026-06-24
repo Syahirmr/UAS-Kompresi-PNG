@@ -25,7 +25,7 @@ def _is_valid_png(path):
         return False
 
 
-def scan_png_folder(path):
+def scan_png_folder(path, cancel_check=None):
     """
     Recursively scan a folder for readable PNG files.
 
@@ -37,6 +37,8 @@ def scan_png_folder(path):
 
     png_files = []
     for file_path in folder.rglob("*"):
+        if cancel_check and cancel_check():
+            return None
         if not file_path.is_file():
             continue
         if _is_hidden(file_path.relative_to(folder)):
